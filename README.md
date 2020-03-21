@@ -4,13 +4,11 @@ A swift subcommand for checking if your dependencies have an update available. T
 
 Heavily inspired by [cargo-outdated](https://github.com/kbknapp/cargo-outdated).
 
-*Please be aware that this is just quickly hacked together to try it out, it is by no means complete nor is the implementation ideal.*
+**Please be aware that this is just quickly hacked together to try it out, it is by no means complete nor is the implementation ideal.**
 
-## How it works
+Calling `swift package update` will only update to the latest available requirements inside your specified version requirements, which totally makes sense, but you might miss that there's a new major version available if you don't check the dependency's repository regularly.
 
-`swift-outdated` checks the remote git tags of the dependencies in your manifest to find out if newer versions are available. Calling `swift package update` will only update to the latest available requirements inside your specified version requirements, which totally makes sense, but you might miss that there's a new major version available if you don't check the dependency's repository regularly.
-
-This tool aims to help with that by allowing to quickly check if any requirements might be outdated.
+This tool aims to help with that by allowing to quickly check if any requirements might be outdated, it does this by checking the remote git tags of your dependencies to see if something outside of your version requirements is available.
 
 ## Usage
 
@@ -32,3 +30,4 @@ $ swift outdated
 ```
 
 In this example output the dependency `files` is pinned to a version requirement of `.upToNextMinor(from: "4.0.0")`, which does not include the most recent available version `4.1.1`.
+
