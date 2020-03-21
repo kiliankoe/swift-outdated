@@ -16,7 +16,7 @@ This tool aims to help with that by allowing to quickly check if any requirement
 
 Since `swift-outdated` installs with its name, it can be called just like a subcommand of Swift itself via `swift outdated`.
 
-```bash
+```
 $ swift outdated
 
 ----------------------- ----------------- --------
