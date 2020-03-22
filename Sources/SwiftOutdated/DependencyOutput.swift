@@ -18,20 +18,28 @@ extension Dependency.Requirement {
     }
 }
 
-extension Dependency: TextTableRepresentable {
+struct DependencyOutput {
+    let name: String
+    let requirement: String
+    let current: String
+    let latest: String
+    let hasUpdate: Bool
+}
+
+extension DependencyOutput: TextTableRepresentable {
     static let columnHeaders = [
         "Name",
         "Requirement",
+        "Current",
         "Latest"
     ]
 
     var tableValues: [CustomStringConvertible] {
-        let isOutdated = (try? requirementIsOutdated()) ?? false
-        let latestVersion = (try? availableVersions().last?.description) ?? "n/a"
-        return [
-            packageName,
-            isOutdated ? requirement.tableText.red + " ⬆️" : requirement.tableText,
-            latestVersion
+        [
+            name,
+            requirement,
+            hasUpdate ? current.red + " ⬆️" : current.green,
+            latest
         ]
     }
 }

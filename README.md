@@ -17,16 +17,16 @@ Since `swift-outdated` installs with its name, it can be called just like a subc
 ```
 $ swift outdated
 
------------------------ ----------------- --------
- Name                    Requirement       Latest
------------------------ ----------------- --------
- swift-argument-parser   0.0.0..<0.1.0     0.0.2
- version                 2.0.0..<3.0.0     2.0.0
- shellout                2.3.0..<3.0.0     2.3.0
- files                   4.0.0..<4.1.0 ⬆️  4.1.1
- swiftytexttable         0.9.0..<1.0.0     0.9.0
- rainbow                 3.0.0..<4.0.0     3.1.5
------------------------ ----------------- --------
+----------------------- --------------- --------- --------
+ Name                    Requirement     Current   Latest
+----------------------- --------------- --------- --------
+ swift-argument-parser   0.0.0..<0.1.0   0.0.2     0.0.2
+ version                 2.0.0..<3.0.0   2.0.0     2.0.0
+ shellout                2.3.0..<3.0.0   2.3.0     2.3.0
+ files                   4.0.0..<4.1.0   4.0.2 ⬆️  4.1.1
+ swiftytexttable         0.9.0..<1.0.0   0.9.0     0.9.0
+ rainbow                 3.0.0..<4.0.0   3.1.5     3.1.5
+----------------------- --------------- --------- --------
 ```
 
 In this example output the dependency `files` is pinned to a version requirement of `.upToNextMinor(from: "4.0.0")`, which does not include the most recent available version `4.1.1`.

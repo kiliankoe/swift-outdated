@@ -13,7 +13,7 @@ public struct Outdated: ParsableCommand {
         let swiftpm = try SwiftPM()
         try swiftpm.fetchDependencyUpdates()
 
-        var table = TextTable(objects: swiftpm.manifest.dependencies)
+        var table = TextTable(objects: swiftpm.output())
         table.cornerFence = " "
         table.columnFence = " "
         print(table.render())
