@@ -23,7 +23,9 @@ struct DependencyOutput {
     let requirement: String
     let current: String
     let latest: String
-    let hasUpdate: Bool
+
+    let requirementIsOutdated: Bool
+    let currentIsOutdated: Bool
 }
 
 extension DependencyOutput: TextTableRepresentable {
@@ -37,8 +39,8 @@ extension DependencyOutput: TextTableRepresentable {
     var tableValues: [CustomStringConvertible] {
         [
             name,
-            requirement,
-            hasUpdate ? current.red + " ⬆️" : current.green,
+            requirementIsOutdated ? requirement.red : requirement,
+            currentIsOutdated ? current.red + " ⬆️" : current.green,
             latest
         ]
     }

@@ -1,6 +1,7 @@
 import Foundation
 import ShellOut
 import Files
+import Version
 
 struct SwiftPM {
     let manifest: Manifest
@@ -22,15 +23,24 @@ struct SwiftPM {
     func output() -> [DependencyOutput] {
         manifest.dependencies.map { dep in
             let current = self.resolved.object.pins.first { $0.package.lowercased() == dep.packageName.lowercased() }
-            let isOutdated = try? dep.requirementIsOutdated()
-            let latestVersion = try? dep.availableVersions().last?.description
+            let requirementIsOutdated = try? dep.requirementIsOutdated()
+            let latestVersion = try? dep.availableVersions().last
+
+            var currentIsOutdated = false
+            if let currentVersionStr = current?.state.version,
+                let currentVersion = Version(currentVersionStr),
+                let latestVersion = latestVersion
+            {
+                currentIsOutdated = currentVersion < latestVersion
+            }
 
             return DependencyOutput(
                 name: dep.packageName,
                 requirement: dep.requirement.tableText,
                 current: current?.state.description ?? "n/a",
-                latest: latestVersion ?? "n/a",
-                hasUpdate: isOutdated ?? false)
+                latest: latestVersion?.description ?? "n/a",
+                requirementIsOutdated: requirementIsOutdated ?? false,
+                currentIsOutdated: currentIsOutdated)
         }
     }
 }
