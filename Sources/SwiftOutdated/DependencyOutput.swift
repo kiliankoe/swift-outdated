@@ -39,7 +39,7 @@ extension DependencyOutput: TextTableRepresentable {
     var tableValues: [CustomStringConvertible] {
         [
             name,
-            requirementIsOutdated ? requirement.red : requirement,
+            requirementIsOutdated ? requirement.red + " ⬆️" : requirement,
             currentIsOutdated ? current.red + " ⬆️" : current.green,
             latest
         ]
