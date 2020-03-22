@@ -17,9 +17,17 @@ struct Dependency: Decodable {
         url.lastPathComponent.replacingOccurrences(of: ".git", with: "")
     }
 
+    func checkoutDir() throws -> Folder {
+        try Folder(path: ".build/checkouts/\(packageName)")
+    }
+
+    func fetchRepository() throws {
+        print("Fetching \(url)")
+        try shellOut(to: "git", arguments: ["fetch"], at: checkoutDir().path)
+    }
+
     func availableVersions() throws -> [Version] {
-        let checkoutDir = try Folder(path: ".build/checkouts/\(packageName)")
-        let lsRemote = try shellOut(to: "git", arguments: ["ls-remote", "--tags"], at: checkoutDir.path)
+        let lsRemote = try shellOut(to: "git", arguments: ["ls-remote", "--tags"], at: checkoutDir().path)
         return lsRemote
             .split(separator: "\n")
             .dropFirst() // Remote description

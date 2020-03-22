@@ -11,6 +11,8 @@ public struct Outdated: ParsableCommand {
 
     public func run() throws {
         let swiftpm = try SwiftPM()
+        try swiftpm.fetchDependencyUpdates()
+
         var table = TextTable(objects: swiftpm.manifest.dependencies)
         table.cornerFence = " "
         table.columnFence = " "
