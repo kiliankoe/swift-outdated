@@ -17,17 +17,23 @@ Since `swift-outdated` installs with its name, it can be called just like a subc
 ```
 $ swift outdated
 
------------------------ ----------------- --------- --------
- Name                    Requirement       Current   Latest
------------------------ ----------------- --------- --------
- swift-argument-parser   0.0.0..<0.1.0     0.0.2     0.0.2
- version                 2.0.0..<3.0.0     2.0.0     2.0.0
- shellout                2.3.0..<3.0.0     2.3.0     2.3.0
- files                   4.0.0..<4.1.0 ⬆️  4.0.2 ⬆️  4.1.1
- swiftytexttable         0.9.0..<1.0.0     0.9.0     0.9.0
- rainbow                 3.0.0..<4.0.0     3.1.5     3.1.5
------------------------ ----------------- --------- --------
+----------------------- --------- --------
+ Package                 Current   Latest
+----------------------- --------- --------
+ Files                   4.1.1     4.2.0
+ Rainbow                 3.1.5     3.2.0
+ swift-argument-parser   0.0.5     0.3.2
+----------------------- --------- --------
 ```
 
-In this example output the dependency `files` is pinned to a version requirement of `.upToNextMinor(from: "4.0.0")`, which does not include the most recent available version `4.1.1`.
+This lists all your outdated dependencies, the currently resolved version and the latest version available in their upstream repository.
 
+### Xcode
+
+swift-outdated also supports Xcode projects that use Swift packages for their dependency management. Either run it manually inside your repo
+or set up a Run Script Phase. In the latter case swift-outdated emits warnings for your outdated dependencies.
+
+<img width="247" alt="Xcode warnings screenshot" src="https://user-images.githubusercontent.com/2625584/104966116-6cedc400-59e0-11eb-9dc0-942f860e9e33.png">
+
+Be aware however that using a Run Script Phase in this way will fetch available versions for all of your dependencies on every build, which will
+increase your build time by a second or two. You're probably better off running this manually every now and then.
