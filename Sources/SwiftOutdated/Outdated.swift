@@ -6,7 +6,8 @@ public struct Outdated: ParsableCommand {
 
     public static let configuration = CommandConfiguration(
         commandName: "swift outdated",
-        abstract: "Check for outdated dependencies."
+        abstract: "Check for outdated dependencies.",
+        version: "0.1.0"
     )
 
     public func run() throws {
