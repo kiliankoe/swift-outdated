@@ -5,13 +5,10 @@ import SwiftyTextTable
 public struct Outdated: ParsableCommand {
     public init() {}
 
-    @Flag(help: "Format output for use as an Xcode Run Script Phase.")
-    var xcode: Bool
-
     public static let configuration = CommandConfiguration(
         commandName: "swift outdated",
         abstract: "Check for outdated dependencies.",
-        version: "0.2.0"
+        version: "0.2.1"
     )
 
     public func run() throws {
@@ -25,7 +22,7 @@ public struct Outdated: ParsableCommand {
 
         guard !outdatedPins.isEmpty || !ignoredPackages.isEmpty else { return }
 
-        if xcode {
+        if ProcessInfo.processInfo.environment["XCODE_VERSION_ACTUAL"] != nil {
             for pin in outdatedPins {
                 print("warning: Dependency \(pin.package) is outdated (\(pin.currentVersion) < \(pin.latestVersion))")
             }
