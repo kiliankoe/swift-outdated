@@ -33,7 +33,7 @@ public struct Outdated: ParsableCommand {
             print(table.render())
 
             if !ignoredPackages.isEmpty {
-                let ignoredString = ignoredPackages.map { $0.package }.joined(separator: ",")
+                let ignoredString = ignoredPackages.map { $0.package }.joined(separator: ", ")
                 print("Ignored because of revision or branch pins: \(ignoredString)")
             }
         }
