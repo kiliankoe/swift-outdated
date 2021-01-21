@@ -25,7 +25,6 @@ struct Pin: Decodable {
         let lsRemote = try shellOut(to: "git", arguments: ["ls-remote", "--tags", self.repositoryURL])
         return lsRemote
             .split(separator: "\n")
-            .dropFirst() // Remote description
             .map {
                 $0.split(separator: "\t")
                     .last!
@@ -33,6 +32,7 @@ struct Pin: Decodable {
                     .replacingOccurrences(of: #"refs\/tags\/(v(?=\d))?"#, with: "", options: .regularExpression)
             }
             .compactMap { Version($0) }
+            .sorted()
     }
 
     var outdatedPin: OutdatedPin? {
