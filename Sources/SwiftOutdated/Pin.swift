@@ -30,7 +30,7 @@ struct Pin: Decodable {
                 $0.split(separator: "\t")
                     .last!
                     .trimmingCharacters(in: .whitespaces)
-                    .replacingOccurrences(of: "refs/tags/", with: "")
+                    .replacingOccurrences(of: #"refs\/tags\/(v(?=\d))?"#, with: "", options: .regularExpression)
             }
             .compactMap { Version($0) }
     }
