@@ -4,11 +4,16 @@ A swift subcommand for checking if your dependencies have an update available. T
 
 Heavily inspired by [cargo-outdated](https://github.com/kbknapp/cargo-outdated).
 
-**Please be aware that this is just quickly hacked together to try it out, it is by no means complete nor is the implementation ideal.**
-
 Calling `swift package update` will only update to the latest available requirements inside your specified version requirements, which totally makes sense, but you might miss that there's a new major version available if you don't check the dependency's repository regularly.
 
 This tool aims to help with that by allowing to quickly check if any requirements might be outdated, it does this by checking the remote git tags of your dependencies to see if something outside of your version requirements is available.
+
+`swift-outdated` can be installed via Homebrew, although for the time being via a custom tap.
+
+```bash
+$ brew tap kiliankoe/formulae
+$ brew install swift-outdated
+```
 
 ## Usage
 
