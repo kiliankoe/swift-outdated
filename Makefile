@@ -2,7 +2,8 @@ prefix ?= /usr/local
 bindir = $(prefix)/bin
 
 build:
-	swift build -c release
+	# disabling the sandbox is necessary for installation with homebrew
+	swift build -c release --disable-sandbox
 
 install: build
 	install ".build/release/swift-outdated" "$(bindir)"
