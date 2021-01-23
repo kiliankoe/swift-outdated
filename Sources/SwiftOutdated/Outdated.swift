@@ -1,6 +1,8 @@
 import Foundation
+import Dispatch
 import ArgumentParser
 import SwiftyTextTable
+import Version
 
 public struct Outdated: ParsableCommand {
     public init() {}
@@ -13,16 +15,48 @@ public struct Outdated: ParsableCommand {
 
     public func run() throws {
         let resolved = try Resolved.read()
+        collectVersions(for: resolved)
+    }
 
-        let outdatedPins = resolved.object.pins
-            .filter(\.hasResolvedVersion)
-            .compactMap { $0.outdatedPin }
+    func collectVersions(for resolved: Resolved) {
+        let group = DispatchGroup()
+        var versions: [Pin: [Version]] = [:]
 
-        let ignoredPackages = resolved.object.pins.filter { !$0.hasResolvedVersion }
+        for pin in resolved.object.pins where pin.hasResolvedVersion {
+            group.enter()
+            pin.availableVersions { availableVersions in
+                if let availableVersions = availableVersions {
+                    versions[pin] = availableVersions
+                }
+                group.leave()
+            }
+        }
+
+        let semaphore = DispatchSemaphore(value: 0)
+
+        group.notify(queue: .global()) {
+            let ignoredPackages = resolved.object.pins.filter { !$0.hasResolvedVersion }
+            self.outputOutdatedPins(versions: versions, ignoredPackages: ignoredPackages)
+            semaphore.signal()
+        }
+
+        group.wait()
+        semaphore.wait()
+    }
+
+    func outputOutdatedPins(versions: [Pin: [Version]], ignoredPackages: [Pin]) {
+        let outdatedPins = versions
+            .compactMap { pin, allVersions -> OutdatedPin? in
+                if let current = pin.version, let latest = allVersions.last, current != latest {
+                    return OutdatedPin(package: pin.package, currentVersion: current, latestVersion: latest)
+                }
+                return nil
+            }
+            .sorted(by: { $0.package < $1.package })
 
         guard !outdatedPins.isEmpty || !ignoredPackages.isEmpty else { return }
 
-        if ProcessInfo.processInfo.environment["XCODE_VERSION_ACTUAL"] != nil {
+        if isRunningInXcode() {
             for pin in outdatedPins {
                 print("warning: Dependency \(pin.package) is outdated (\(pin.currentVersion) < \(pin.latestVersion))")
             }
@@ -37,5 +71,9 @@ public struct Outdated: ParsableCommand {
                 print("Ignored because of revision or branch pins: \(ignoredString)")
             }
         }
+    }
+
+    func isRunningInXcode() -> Bool {
+        ProcessInfo.processInfo.environment["XCODE_VERSION_ACTUAL"] != nil
     }
 }

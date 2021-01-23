@@ -1,13 +1,19 @@
 import Foundation
+import Dispatch
 import ShellOut
 import Version
 
-struct Pin: Decodable {
+struct Pin: Decodable, Hashable {
     let package: String
     let repositoryURL: String
     let state: State
 
-    struct State: Decodable {
+    var version: Version? {
+        guard let versionStr = self.state.version, let version = Version(versionStr) else { return nil }
+        return version
+    }
+
+    struct State: Decodable, Hashable {
         let branch: String?
         let revision: String
         let version: String?
@@ -35,13 +41,10 @@ struct Pin: Decodable {
             .sorted()
     }
 
-    var outdatedPin: OutdatedPin? {
-        guard let versionStr = self.state.version,
-              let version = Version(versionStr),
-              let latest = try? self.availableVersions().last,
-              version < latest
-        else { return nil }
-
-        return OutdatedPin(package: self.package, currentVersion: version, latestVersion: latest)
+    func availableVersions(completion: @escaping ([Version]?) -> Void) {
+        DispatchQueue.global().async {
+            let versions = try? self.availableVersions()
+            completion(versions)
+        }
     }
 }
