@@ -10,7 +10,17 @@ public struct Outdated: ParsableCommand {
     public static let configuration = CommandConfiguration(
         commandName: "swift outdated",
         abstract: "Check for outdated dependencies.",
-        version: "0.2.4"
+        discussion: """
+        swift-outdated will output an overview of your outdated dependencies found in your Package.resolved file.
+        Dependencies pinned to specific revisions or branches are ignored (and shown as such).
+
+        The latest version for dependencies one major version behind is colored green, yellow for two major versions
+        and red for anything above that.
+
+        swift-outdated automatically detects if it is run via an Xcode run script phase and will emit warnings for
+        Xcode's issue navigator.
+        """,
+        version: "0.3.0"
     )
 
     public func run() throws {
