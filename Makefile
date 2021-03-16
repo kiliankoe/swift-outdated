@@ -14,4 +14,4 @@ uninstall:
 clean:
 	rm -rf .build
 
-.PHONY: build install uninstall clean
+.PHONY: uninstall clean
