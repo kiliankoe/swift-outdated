@@ -12,6 +12,8 @@ struct Resolved: Decodable {
     static func read() throws -> Resolved {
         if let rootResolved = try? File(path: "Package.resolved") {
             return try JSONDecoder().decode(Resolved.self, from: try rootResolved.read())
+        } else if let rootResolved = try? File(path: ".package.resolved") {
+            return try JSONDecoder().decode(Resolved.self, from: try rootResolved.read())
         }
 
         if let xcodeWorkspace = Folder.current.subfolders.first(where: { $0.name.hasSuffix("xcworkspace") }) {
