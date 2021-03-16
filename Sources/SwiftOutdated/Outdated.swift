@@ -20,7 +20,7 @@ public struct Outdated: ParsableCommand {
         swift-outdated automatically detects if it is run via an Xcode run script phase and will emit warnings for
         Xcode's issue navigator.
         """,
-        version: "0.3.0"
+        version: "0.3.1"
     )
 
     public func run() throws {
