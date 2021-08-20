@@ -1,6 +1,6 @@
-import Foundation
-import Dispatch
 import ArgumentParser
+import Dispatch
+import Foundation
 import SwiftyTextTable
 import Version
 
@@ -30,7 +30,7 @@ public struct Outdated: ParsableCommand {
 
     func collectVersions(for resolved: Resolved) {
         let group = DispatchGroup()
-        var versions: [Pin: [Version]] = [:]
+        let versions = ConcurrentDictionary<Pin, [Version]>()
 
         for pin in resolved.object.pins where pin.hasResolvedVersion {
             group.enter()
@@ -54,7 +54,7 @@ public struct Outdated: ParsableCommand {
         semaphore.wait()
     }
 
-    func outputOutdatedPins(versions: [Pin: [Version]], ignoredPackages: [Pin]) {
+    func outputOutdatedPins(versions: ConcurrentDictionary<Pin, [Version]>, ignoredPackages: [Pin]) {
         let outdatedPins = versions
             .compactMap { pin, allVersions -> OutdatedPin? in
                 if let current = pin.version, let latest = allVersions.last, current != latest {
