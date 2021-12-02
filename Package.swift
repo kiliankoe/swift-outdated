@@ -16,7 +16,7 @@ let package = Package(
             targets: ["SwiftOutdated"]),
     ],
     dependencies: [
-        .package(url: "https://github.com/apple/swift-argument-parser.git", from: "0.3.2"),
+        .package(url: "https://github.com/apple/swift-argument-parser.git", from: "1.0.0"),
         .package(name: "Version", url: "https://github.com/mxcl/version.git", from: "2.0.0"),
         .package(name: "ShellOut", url: "https://github.com/johnsundell/shellout.git", from: "2.3.0"),
         .package(name: "Files", url: "https://github.com/johnsundell/files.git", from: "4.0.0"),
