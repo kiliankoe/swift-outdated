@@ -8,6 +8,18 @@ Calling `swift package update` will only update to the latest available requirem
 
 This tool aims to help with that by allowing to quickly check if any requirements might be outdated, it does this by checking the remote git tags of your dependencies to see if something outside of your version requirements is available.
 
+## Installing
+
+### [Mint](https://github.com/yonaskolb/mint)
+
+swift-outdated can be installed via [Mint](https://github.com/yonaskolb/mint).
+
+```bash
+$ mint install kiliankoe/swift-outdated
+```
+
+### Homebrew
+
 `swift-outdated` can be installed via Homebrew, although for the time being via a custom tap.
 
 ```bash
