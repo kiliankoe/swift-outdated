@@ -31,8 +31,6 @@ $ brew install swift-outdated
 
 Since `swift-outdated` installs with its name, it can be called just like a subcommand of Swift itself via `swift outdated`.
 
-If you installed `swift-outdated` via Mint, it has to be called using mint like `mint run outdated`.
-
 ```
 $ swift outdated
 
