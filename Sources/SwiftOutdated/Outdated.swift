@@ -24,19 +24,19 @@ public struct Outdated: ParsableCommand {
     )
 
     public func run() throws {
-        let resolved = try Resolved.read()
-        collectVersions(for: resolved)
+        let packages = try SwiftPackage.read()
+        collectVersions(for: packages)
     }
 
-    func collectVersions(for resolved: Resolved) {
+    func collectVersions(for packages: [SwiftPackage]) {
         let group = DispatchGroup()
-        let versions = ConcurrentDictionary<Pin, [Version]>()
+        let versions = ConcurrentDictionary<SwiftPackage, [Version]>()
 
-        for pin in resolved.object.pins where pin.hasResolvedVersion {
+        for package in packages where package.hasResolvedVersion {
             group.enter()
-            pin.availableVersions { availableVersions in
+            package.availableVersions { availableVersions in
                 if let availableVersions = availableVersions {
-                    versions[pin] = availableVersions
+                    versions[package] = availableVersions
                 }
                 group.leave()
             }
@@ -45,7 +45,7 @@ public struct Outdated: ParsableCommand {
         let semaphore = DispatchSemaphore(value: 0)
 
         group.notify(queue: .global()) {
-            let ignoredPackages = resolved.object.pins.filter { !$0.hasResolvedVersion }
+            let ignoredPackages = packages.filter { !$0.hasResolvedVersion }
             self.outputOutdatedPins(versions: versions, ignoredPackages: ignoredPackages)
             semaphore.signal()
         }
@@ -54,24 +54,24 @@ public struct Outdated: ParsableCommand {
         semaphore.wait()
     }
 
-    func outputOutdatedPins(versions: ConcurrentDictionary<Pin, [Version]>, ignoredPackages: [Pin]) {
-        let outdatedPins = versions
-            .compactMap { pin, allVersions -> OutdatedPin? in
-                if let current = pin.version, let latest = allVersions.last, current != latest {
-                    return OutdatedPin(package: pin.package, currentVersion: current, latestVersion: latest)
+    func outputOutdatedPins(versions: ConcurrentDictionary<SwiftPackage, [Version]>, ignoredPackages: [SwiftPackage]) {
+        let outdatedPackages = versions
+            .compactMap { package, allVersions -> OutdatedPackage? in
+                if let current = package.version, let latest = allVersions.last, current != latest {
+                    return OutdatedPackage(package: package.package, currentVersion: current, latestVersion: latest)
                 }
                 return nil
             }
             .sorted(by: { $0.package < $1.package })
 
-        guard !outdatedPins.isEmpty || !ignoredPackages.isEmpty else { return }
+        guard !outdatedPackages.isEmpty || !ignoredPackages.isEmpty else { return }
 
         if isRunningInXcode() {
-            for pin in outdatedPins {
-                print("warning: Dependency \(pin.package) is outdated (\(pin.currentVersion) < \(pin.latestVersion))")
+            outdatedPackages.forEach {
+                print("warning: Dependency \($0.package) is outdated (\($0.currentVersion) < \($0.latestVersion))")
             }
         } else {
-            var table = TextTable(objects: outdatedPins)
+            var table = TextTable(objects: outdatedPackages)
             table.cornerFence = " "
             table.columnFence = " "
             print(table.render())
