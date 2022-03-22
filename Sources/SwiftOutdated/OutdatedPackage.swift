@@ -3,13 +3,13 @@ import Version
 import SwiftyTextTable
 import Rainbow
 
-struct OutdatedPin {
+struct OutdatedPackage {
     let package: String
     let currentVersion: Version
     let latestVersion: Version
 }
 
-extension OutdatedPin: TextTableRepresentable {
+extension OutdatedPackage: TextTableRepresentable {
     static let columnHeaders = [
         "Package",
         "Current",
