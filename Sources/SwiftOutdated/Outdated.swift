@@ -5,6 +5,11 @@ import SwiftyTextTable
 import Version
 
 public struct Outdated: ParsableCommand {
+    @Flag(name: .shortAndLong, help: "Render table in Markdown style.")
+    public var markdown = false
+
+    private var isMarkdownStyle: Bool { markdown }
+
     public init() {}
 
     public static let configuration = CommandConfiguration(
