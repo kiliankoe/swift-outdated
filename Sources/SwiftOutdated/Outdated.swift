@@ -5,11 +5,6 @@ import SwiftyTextTable
 import Version
 
 public struct Outdated: ParsableCommand {
-    @Flag(name: .shortAndLong, help: "Render table in Markdown style.")
-    public var markdown = false
-
-    private var isMarkdownStyle: Bool { markdown }
-
     public init() {}
 
     public static let configuration = CommandConfiguration(
@@ -77,20 +72,16 @@ public struct Outdated: ParsableCommand {
             }
         } else {
             var table = TextTable(objects: outdatedPackages)
-            let fenceMark = isMarkdownStyle ? "|" : " "
-            table.cornerFence = fenceMark
-            table.columnFence = fenceMark
 
+            // table in Markdown style.
+            table.cornerFence = "|"
             var rendered = table.render()
-
-            if isMarkdownStyle {
-                // Remove unnecessary separators for Markdown table (first and last fences).
-                rendered = rendered
-                    .components(separatedBy: "\n")
-                    .dropFirst()
-                    .dropLast(1)
-                    .joined(separator: "\n")
-            }
+            // Remove unnecessary separators for Markdown table (first and last fences).
+            rendered = rendered
+                .components(separatedBy: "\n")
+                .dropFirst()
+                .dropLast(1)
+                .joined(separator: "\n")
 
             print(rendered)
 
