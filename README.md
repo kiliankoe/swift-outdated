@@ -34,13 +34,12 @@ Since `swift-outdated` installs with its name, it can be called just like a subc
 ```
 $ swift outdated
 
------------------------ --------- --------
- Package                 Current   Latest
------------------------ --------- --------
- Files                   4.1.1     4.2.0
- Rainbow                 3.1.5     3.2.0
- swift-argument-parser   0.0.5     0.3.2
------------------------ --------- --------
+| Package               | Current | Latest |                                                                                                                                                                   │
+|-----------------------|---------|--------|                                                                                                                                                                   │
+| Files                 | 4.1.1   | 4.2.0  |                                                                                                                                                                   │
+| Rainbow               | 3.1.5   | 4.0.1  |                                                                                                                                                                   │
+| Version               | 2.0.0   | 2.0.1  |                                                                                                                                                                   │
+| swift-argument-parser | 1.0.2   | 1.1.4  |                                                                                                                                                                   │
 ```
 
 This lists all your outdated dependencies, the currently resolved version and the latest version available in their upstream repository.
