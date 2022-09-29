@@ -72,9 +72,18 @@ public struct Outdated: ParsableCommand {
             }
         } else {
             var table = TextTable(objects: outdatedPackages)
-            table.cornerFence = " "
-            table.columnFence = " "
-            print(table.render())
+
+            // table in Markdown style.
+            table.cornerFence = "|"
+            var rendered = table.render()
+            // Remove unnecessary separators for Markdown table (first and last fences).
+            rendered = rendered
+                .components(separatedBy: "\n")
+                .dropFirst()
+                .dropLast(1)
+                .joined(separator: "\n")
+
+            print(rendered)
 
             if !ignoredPackages.isEmpty {
                 let ignoredString = ignoredPackages.map { $0.package }.joined(separator: ", ")
