@@ -10,9 +10,9 @@ public struct SwiftPackage: Hashable {
     let version: Version?
 }
 
+extension SwiftPackage: Encodable {}
 
 extension SwiftPackage {
-    
     var hasResolvedVersion: Bool {
         self.version != nil
     }
@@ -39,7 +39,6 @@ extension SwiftPackage {
     }
     
     static func read() throws -> [Self] {
-        
         let file: File = try {
             
             if let rootResolved = try? File(path: "Package.resolved") {

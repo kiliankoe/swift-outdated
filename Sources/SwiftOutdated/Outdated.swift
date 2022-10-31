@@ -7,6 +7,9 @@ import Version
 public struct Outdated: ParsableCommand {
     public init() {}
 
+    @Flag(name: .customLong("json"), help: "Output list of outdated and ignored packages as JSON.")
+    var shouldOutputJSON = false
+
     public static let configuration = CommandConfiguration(
         commandName: "swift outdated",
         abstract: "Check for outdated dependencies.",
@@ -20,7 +23,7 @@ public struct Outdated: ParsableCommand {
         swift-outdated automatically detects if it is run via an Xcode run script phase and will emit warnings for
         Xcode's issue navigator.
         """,
-        version: "0.3.6"
+        version: "0.3.7"
     )
 
     public func run() throws {
@@ -66,33 +69,44 @@ public struct Outdated: ParsableCommand {
 
         guard !outdatedPackages.isEmpty || !ignoredPackages.isEmpty else { return }
 
-        if isRunningInXcode() {
+        if isRunningInXcode {
             outdatedPackages.forEach {
                 print("warning: Dependency \($0.package) is outdated (\($0.currentVersion) < \($0.latestVersion))")
             }
         } else {
-            var table = TextTable(objects: outdatedPackages)
+            if shouldOutputJSON {
+                let output = JSONOutput(outdatedPackages: outdatedPackages, ignoredPackages: ignoredPackages)
+                let json = try! JSONEncoder().encode(output)
+                print(String(data: json, encoding: .utf8)!)
+            } else {
+                var table = TextTable(objects: outdatedPackages)
 
-            // table in Markdown style.
-            table.cornerFence = "|"
-            var rendered = table.render()
-            // Remove unnecessary separators for Markdown table (first and last fences).
-            rendered = rendered
-                .components(separatedBy: "\n")
-                .dropFirst()
-                .dropLast(1)
-                .joined(separator: "\n")
+                // table in Markdown style.
+                table.cornerFence = "|"
+                var rendered = table.render()
+                // Remove unnecessary separators for Markdown table (first and last fences).
+                rendered = rendered
+                    .components(separatedBy: "\n")
+                    .dropFirst()
+                    .dropLast(1)
+                    .joined(separator: "\n")
 
-            print(rendered)
+                print(rendered)
 
-            if !ignoredPackages.isEmpty {
-                let ignoredString = ignoredPackages.map { $0.package }.joined(separator: ", ")
-                print("Ignored because of revision or branch pins: \(ignoredString)")
+                if !ignoredPackages.isEmpty {
+                    let ignoredString = ignoredPackages.map { $0.package }.joined(separator: ", ")
+                    print("Ignored because of revision or branch pins: \(ignoredString)")
+                }
             }
         }
     }
 
-    func isRunningInXcode() -> Bool {
+    private var isRunningInXcode: Bool {
         ProcessInfo.processInfo.environment["XCODE_VERSION_ACTUAL"] != nil
     }
+}
+
+struct JSONOutput: Encodable {
+    var outdatedPackages: [OutdatedPackage]
+    var ignoredPackages: [SwiftPackage]
 }

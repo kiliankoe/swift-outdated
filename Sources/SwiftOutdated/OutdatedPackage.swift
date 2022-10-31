@@ -9,6 +9,8 @@ struct OutdatedPackage {
     let latestVersion: Version
 }
 
+extension OutdatedPackage: Encodable {}
+
 extension OutdatedPackage: TextTableRepresentable {
     static let columnHeaders = [
         "Package",
