@@ -7,8 +7,14 @@ import Version
 public struct Outdated: ParsableCommand {
     public init() {}
 
-    @Flag(name: .customLong("json"), help: "Output list of outdated and ignored packages as JSON.")
-    var shouldOutputJSON = false
+    enum OutputFormat: String, ExpressibleByArgument {
+        case markdown
+        case json
+        case xcode
+    }
+
+    @Option(name: .shortAndLong, help: "The output format (markdown, json, xcode).")
+    var format: OutputFormat = .markdown
 
     public static let configuration = CommandConfiguration(
         commandName: "swift outdated",
@@ -57,7 +63,6 @@ public struct Outdated: ParsableCommand {
         semaphore.wait()
     }
 
-    func outputOutdatedPins(versions: ConcurrentDictionary<SwiftPackage, [Version]>, ignoredPackages: [SwiftPackage]) {
         let outdatedPackages = versions
             .compactMap { package, allVersions -> OutdatedPackage? in
                 if let current = package.version, let latest = allVersions.last, current != latest {
@@ -66,37 +71,44 @@ public struct Outdated: ParsableCommand {
                 return nil
             }
             .sorted(by: { $0.package < $1.package })
+        let ignoredPackages = packages.filter { !$0.hasResolvedVersion }
+        return PackageCollection(outdatedPackages: outdatedPackages, ignoredPackages: ignoredPackages)
+    }
 
-        guard !outdatedPackages.isEmpty || !ignoredPackages.isEmpty else { return }
+    func output(_ packages: PackageCollection) {
+        guard !packages.outdatedPackages.isEmpty || !packages.ignoredPackages.isEmpty else { return }
 
+        var outputFormat = format
         if isRunningInXcode {
-            outdatedPackages.forEach {
+            outputFormat = .xcode
+        }
+
+        switch outputFormat {
+        case .xcode:
+            packages.outdatedPackages.forEach {
                 print("warning: Dependency \($0.package) is outdated (\($0.currentVersion) < \($0.latestVersion))")
             }
-        } else {
-            if shouldOutputJSON {
-                let output = JSONOutput(outdatedPackages: outdatedPackages, ignoredPackages: ignoredPackages)
-                let json = try! JSONEncoder().encode(output)
-                print(String(data: json, encoding: .utf8)!)
-            } else {
-                var table = TextTable(objects: outdatedPackages)
+        case .json:
+            let json = try! JSONEncoder().encode(packages)
+            print(String(data: json, encoding: .utf8)!)
+        case .markdown:
+            var table = TextTable(objects: packages.outdatedPackages)
 
-                // table in Markdown style.
-                table.cornerFence = "|"
-                var rendered = table.render()
-                // Remove unnecessary separators for Markdown table (first and last fences).
-                rendered = rendered
-                    .components(separatedBy: "\n")
-                    .dropFirst()
-                    .dropLast(1)
-                    .joined(separator: "\n")
+            // table in Markdown style.
+            table.cornerFence = "|"
+            var rendered = table.render()
+            // Remove unnecessary separators for Markdown table (first and last fences).
+            rendered = rendered
+                .components(separatedBy: "\n")
+                .dropFirst()
+                .dropLast(1)
+                .joined(separator: "\n")
 
-                print(rendered)
+            print(rendered)
 
-                if !ignoredPackages.isEmpty {
-                    let ignoredString = ignoredPackages.map { $0.package }.joined(separator: ", ")
-                    print("Ignored because of revision or branch pins: \(ignoredString)")
-                }
+            if !packages.ignoredPackages.isEmpty {
+                let ignoredString = packages.ignoredPackages.map { $0.package }.joined(separator: ", ")
+                print("Ignored because of revision or branch pins: \(ignoredString)")
             }
         }
     }
@@ -106,7 +118,7 @@ public struct Outdated: ParsableCommand {
     }
 }
 
-struct JSONOutput: Encodable {
+struct PackageCollection: Encodable {
     var outdatedPackages: [OutdatedPackage]
     var ignoredPackages: [SwiftPackage]
 }
