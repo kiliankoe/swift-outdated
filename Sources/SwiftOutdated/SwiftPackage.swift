@@ -30,15 +30,8 @@ extension SwiftPackage {
             .compactMap { Version($0) }
             .sorted()
     }
-
-    func availableVersions(completion: @escaping ([Version]?) -> Void) {
-        DispatchQueue.global().async {
-            let versions = try? self.availableVersions()
-            completion(versions)
-        }
-    }
     
-    static func read() throws -> [Self] {
+    static func currentPackagePins() throws -> [Self] {
         let file: File = try {
             
             if let rootResolved = try? File(path: "Package.resolved") {

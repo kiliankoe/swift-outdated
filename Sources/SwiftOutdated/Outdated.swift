@@ -4,7 +4,7 @@ import Foundation
 import SwiftyTextTable
 import Version
 
-public struct Outdated: ParsableCommand {
+public struct Outdated: AsyncParsableCommand {
     public init() {}
 
     enum OutputFormat: String, ExpressibleByArgument {
@@ -33,35 +33,37 @@ public struct Outdated: ParsableCommand {
     )
 
     public func run() throws {
-        let packages = try SwiftPackage.read()
-        collectVersions(for: packages)
-    }
-
-    func collectVersions(for packages: [SwiftPackage]) {
-        let group = DispatchGroup()
-        let versions = ConcurrentDictionary<SwiftPackage, [Version]>()
-
-        for package in packages where package.hasResolvedVersion {
-            group.enter()
-            package.availableVersions { availableVersions in
-                if let availableVersions = availableVersions {
-                    versions[package] = availableVersions
-                }
-                group.leave()
-            }
-        }
-
+        // This should work without the semaphore by using `run() async` directly, but it doesn't. Why?
         let semaphore = DispatchSemaphore(value: 0)
-
-        group.notify(queue: .global()) {
-            let ignoredPackages = packages.filter { !$0.hasResolvedVersion }
-            self.outputOutdatedPins(versions: versions, ignoredPackages: ignoredPackages)
+        Task {
+            let pins = try SwiftPackage.currentPackagePins()
+            let packages = await collectVersions(for: pins)
+            output(packages)
             semaphore.signal()
         }
-
-        group.wait()
         semaphore.wait()
     }
+
+    func collectVersions(for packages: [SwiftPackage]) async -> PackageCollection {
+        let versions = await withTaskGroup(of: (SwiftPackage, [Version]?).self) { group in
+            for package in packages where package.hasResolvedVersion {
+                group.addTask {
+                    if let availableVersions = try? package.availableVersions() {
+                        return (package, availableVersions)
+                    }
+                    return (package, nil)
+                }
+            }
+
+            var availableVersions = [SwiftPackage: [Version]]()
+            for await (package, versions) in group {
+                if let versions = versions {
+                    availableVersions[package] = versions
+                }
+            }
+
+            return availableVersions
+        }
 
         let outdatedPackages = versions
             .compactMap { package, allVersions -> OutdatedPackage? in
