@@ -4,6 +4,7 @@ import Foundation
 import SwiftyTextTable
 import Version
 
+@main
 public struct Outdated: AsyncParsableCommand {
     public init() {}
 
@@ -17,7 +18,7 @@ public struct Outdated: AsyncParsableCommand {
     var format: OutputFormat = .markdown
 
     public static let configuration = CommandConfiguration(
-        commandName: "swift outdated",
+        commandName: "swift-outdated",
         abstract: "Check for outdated dependencies.",
         discussion: """
         swift-outdated will output an overview of your outdated dependencies found in your Package.resolved file.
@@ -32,16 +33,10 @@ public struct Outdated: AsyncParsableCommand {
         version: "0.4.0"
     )
 
-    public func run() throws {
-        // This should work without the semaphore by using `run() async` directly, but it doesn't. Why?
-        let semaphore = DispatchSemaphore(value: 0)
-        Task {
-            let pins = try SwiftPackage.currentPackagePins()
-            let packages = await collectVersions(for: pins)
-            output(packages)
-            semaphore.signal()
-        }
-        semaphore.wait()
+    public func run() async throws {
+        let pins = try SwiftPackage.currentPackagePins()
+        let packages = await collectVersions(for: pins)
+        output(packages)
     }
 
     func collectVersions(for packages: [SwiftPackage]) async -> PackageCollection {

@@ -1,3 +1,0 @@
-import SwiftOutdated
-
-Outdated.main()
