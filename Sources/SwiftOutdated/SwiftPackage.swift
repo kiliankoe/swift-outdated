@@ -17,18 +17,24 @@ extension SwiftPackage {
         self.version != nil
     }
     
-    func availableVersions() throws -> [Version] {
-        let lsRemote = try shellOut(to: "git", arguments: ["ls-remote", "--tags", self.repositoryURL])
-        return lsRemote
-            .split(separator: "\n")
-            .map {
-                $0.split(separator: "\t")
-                    .last!
-                    .trimmingCharacters(in: .whitespaces)
-                    .replacingOccurrences(of: #"refs\/tags\/(v(?=\d))?"#, with: "", options: .regularExpression)
-            }
-            .compactMap { Version($0) }
-            .sorted()
+    func availableVersions() -> [Version] {
+        do {
+            log.trace("Running git ls-remote for \(self.package).")
+            let lsRemote = try shellOut(to: "git", arguments: ["ls-remote", "--tags", self.repositoryURL])
+            return lsRemote
+                .split(separator: "\n")
+                .map {
+                    $0.split(separator: "\t")
+                        .last!
+                        .trimmingCharacters(in: .whitespaces)
+                        .replacingOccurrences(of: #"refs\/tags\/(v(?=\d))?"#, with: "", options: .regularExpression)
+                }
+                .compactMap { Version($0) }
+                .sorted()
+        } catch {
+            log.error("Error on git ls-remote for \(package): \(error)")
+            return []
+        }
     }
     
     static func currentPackagePins() throws -> [Self] {

@@ -3,7 +3,11 @@ import Dispatch
 import Foundation
 import SwiftyTextTable
 import Version
+import Logging
 
+let log = Logger(label: "SwiftOutdated")
+
+@main
 public struct Outdated: AsyncParsableCommand {
     public init() {}
 
@@ -16,8 +20,11 @@ public struct Outdated: AsyncParsableCommand {
     @Option(name: .shortAndLong, help: "The output format (markdown, json, xcode).")
     var format: OutputFormat = .markdown
 
+    @Flag(name: .short, help: "Verbose output.")
+    var verbose: Bool = false
+
     public static let configuration = CommandConfiguration(
-        commandName: "swift outdated",
+        commandName: "swift-outdated",
         abstract: "Check for outdated dependencies.",
         discussion: """
         swift-outdated will output an overview of your outdated dependencies found in your Package.resolved file.
@@ -32,26 +39,22 @@ public struct Outdated: AsyncParsableCommand {
         version: "0.4.0"
     )
 
-    public func run() throws {
-        // This should work without the semaphore by using `run() async` directly, but it doesn't. Why?
-        let semaphore = DispatchSemaphore(value: 0)
-        Task {
-            let pins = try SwiftPackage.currentPackagePins()
-            let packages = await collectVersions(for: pins)
-            output(packages)
-            semaphore.signal()
-        }
-        semaphore.wait()
+    public func run() async throws {
+        setupLogging()
+        let pins = try SwiftPackage.currentPackagePins()
+        let packages = await collectVersions(for: pins)
+        output(packages)
     }
 
     func collectVersions(for packages: [SwiftPackage]) async -> PackageCollection {
+        log.info("Collecting versions for \(packages.map { $0.package }.joined(separator: ", ")).")
         let versions = await withTaskGroup(of: (SwiftPackage, [Version]?).self) { group in
             for package in packages where package.hasResolvedVersion {
+                log.info("Package \(package.package) has resolved version, queueing version fetch.")
                 group.addTask {
-                    if let availableVersions = try? package.availableVersions() {
-                        return (package, availableVersions)
-                    }
-                    return (package, nil)
+                    let availableVersions = package.availableVersions()
+                    log.info("Found \(availableVersions.count) versions for \(package.package).")
+                    return (package, availableVersions)
                 }
             }
 
@@ -68,12 +71,18 @@ public struct Outdated: AsyncParsableCommand {
         let outdatedPackages = versions
             .compactMap { package, allVersions -> OutdatedPackage? in
                 if let current = package.version, let latest = allVersions.last, current != latest {
+                    log.info("Package \(package.package) is outdated.")
                     return OutdatedPackage(package: package.package, currentVersion: current, latestVersion: latest)
+                } else {
+                    log.info("Package \(package.package) is up to date.")
                 }
                 return nil
             }
             .sorted(by: { $0.package < $1.package })
         let ignoredPackages = packages.filter { !$0.hasResolvedVersion }
+        if !ignoredPackages.isEmpty {
+            log.info("Ignoring \(ignoredPackages.map { $0.package }.joined(separator: ", ")) because of non-version pins.")
+        }
         return PackageCollection(outdatedPackages: outdatedPackages, ignoredPackages: ignoredPackages)
     }
 
@@ -117,6 +126,22 @@ public struct Outdated: AsyncParsableCommand {
 
     private var isRunningInXcode: Bool {
         ProcessInfo.processInfo.environment["XCODE_VERSION_ACTUAL"] != nil
+    }
+
+    private func setupLogging() {
+        LoggingSystem.bootstrap { label in
+            var logHandler = StreamLogHandler.standardError(label: label)
+            if verbose {
+                #if DEBUG
+                logHandler.logLevel = .trace
+                #else
+                logHandler.logLevel = .info
+                #endif
+            } else {
+                logHandler.logLevel = .error
+            }
+            return logHandler
+        }
     }
 }
 
