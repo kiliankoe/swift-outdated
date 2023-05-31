@@ -23,6 +23,9 @@ public struct Outdated: AsyncParsableCommand {
     @Flag(name: .short, help: "Verbose output.")
     var verbose: Bool = false
 
+    @Flag(name: .long, help: "Fetch package version information sequentially and not concurrently.")
+    var runSequentially: Bool = false
+
     public static let configuration = CommandConfiguration(
         commandName: "swift-outdated",
         abstract: "Check for outdated dependencies.",
@@ -48,24 +51,34 @@ public struct Outdated: AsyncParsableCommand {
 
     func collectVersions(for packages: [SwiftPackage]) async -> PackageCollection {
         log.info("Collecting versions for \(packages.map { $0.package }.joined(separator: ", ")).")
-        let versions = await withTaskGroup(of: (SwiftPackage, [Version]?).self) { group in
+        var versions: [SwiftPackage : [Version]] = [:]
+        if runSequentially {
             for package in packages where package.hasResolvedVersion {
-                log.info("Package \(package.package) has resolved version, queueing version fetch.")
-                group.addTask {
-                    let availableVersions = package.availableVersions()
-                    log.info("Found \(availableVersions.count) versions for \(package.package).")
-                    return (package, availableVersions)
-                }
+                log.info("Package \(package.package) has resolved version, fetching versions.")
+                let availableVersions = package.availableVersions()
+                log.info("Found \(availableVersions.count) versions for \(package.package).")
+                versions[package] = availableVersions
             }
-
-            var availableVersions = [SwiftPackage: [Version]]()
-            for await (package, versions) in group {
-                if let versions = versions {
-                    availableVersions[package] = versions
+        } else {
+            versions = await withTaskGroup(of: (SwiftPackage, [Version]?).self) { group in
+                for package in packages where package.hasResolvedVersion {
+                    log.info("Package \(package.package) has resolved version, queueing version fetch.")
+                    group.addTask {
+                        let availableVersions = package.availableVersions()
+                        log.info("Found \(availableVersions.count) versions for \(package.package).")
+                        return (package, availableVersions)
+                    }
                 }
-            }
 
-            return availableVersions
+                var availableVersions = [SwiftPackage: [Version]]()
+                for await (package, versions) in group {
+                    if let versions = versions {
+                        availableVersions[package] = versions
+                    }
+                }
+
+                return availableVersions
+            }
         }
 
         let outdatedPackages = versions
