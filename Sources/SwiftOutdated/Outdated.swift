@@ -72,7 +72,7 @@ public struct Outdated: AsyncParsableCommand {
             .compactMap { package, allVersions -> OutdatedPackage? in
                 if let current = package.version, let latest = allVersions.last, current != latest {
                     log.info("Package \(package.package) is outdated.")
-                    return OutdatedPackage(package: package.package, currentVersion: current, latestVersion: latest)
+                    return OutdatedPackage(package: package.package, currentVersion: current, latestVersion: latest, url: package.repositoryURL)
                 } else {
                     log.info("Package \(package.package) is up to date.")
                 }
@@ -97,10 +97,12 @@ public struct Outdated: AsyncParsableCommand {
         switch outputFormat {
         case .xcode:
             packages.outdatedPackages.forEach {
-                print("warning: Dependency \($0.package) is outdated (\($0.currentVersion) < \($0.latestVersion))")
+                print("warning: Dependency \"\($0.package)\" is outdated (\($0.currentVersion) < \($0.latestVersion)) → \($0.url)")
             }
         case .json:
-            let json = try! JSONEncoder().encode(packages)
+            let encoder = JSONEncoder()
+            encoder.outputFormatting = .prettyPrinted
+            let json = try! encoder.encode(packages)
             print(String(data: json, encoding: .utf8)!)
         case .markdown:
             var table = TextTable(objects: packages.outdatedPackages)

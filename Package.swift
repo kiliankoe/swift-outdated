@@ -33,8 +33,5 @@ let package = Package(
                 "SwiftyTextTable",
                 "Rainbow",
             ]),
-        .testTarget(
-            name: "SwiftOutdatedTests",
-            dependencies: ["SwiftOutdated"]),
     ]
 )

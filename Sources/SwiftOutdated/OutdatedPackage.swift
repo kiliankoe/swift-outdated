@@ -7,6 +7,7 @@ struct OutdatedPackage {
     let package: String
     let currentVersion: Version
     let latestVersion: Version
+    let url: String
 }
 
 extension OutdatedPackage: Encodable {}
@@ -15,7 +16,8 @@ extension OutdatedPackage: TextTableRepresentable {
     static let columnHeaders = [
         "Package",
         "Current",
-        "Latest"
+        "Latest",
+        "URL"
     ]
 
     var tableValues: [CustomStringConvertible] {
@@ -34,7 +36,8 @@ extension OutdatedPackage: TextTableRepresentable {
         return [
             self.package,
             self.currentVersion.description,
-            latestVersion
+            latestVersion,
+            self.url.blue
         ]
     }
 }
