@@ -1,5 +1,5 @@
 import XCTest
-@testable import SwiftOutdated
+//@testable import SwiftOutdated
 
 final class SwiftOutdatedTests: XCTestCase {
     func testExample() {
