@@ -14,11 +14,10 @@ public struct Outdated: AsyncParsableCommand {
     enum OutputFormat: String, ExpressibleByArgument {
         case markdown
         case json
-        case prettyJson = "pretty-json"
         case xcode
     }
 
-    @Option(name: .shortAndLong, help: "The output format (markdown, json, pretty-json, xcode).")
+    @Option(name: .shortAndLong, help: "The output format (markdown, json, xcode).")
     var format: OutputFormat = .markdown
 
     @Flag(name: .short, help: "Verbose output.")
@@ -101,9 +100,6 @@ public struct Outdated: AsyncParsableCommand {
                 print("warning: Dependency \"\($0.package)\" is outdated (\($0.currentVersion) < \($0.latestVersion)) → \($0.url)")
             }
         case .json:
-            let json = try! JSONEncoder().encode(packages)
-            print(String(data: json, encoding: .utf8)!)
-        case .prettyJson:
             let encoder = JSONEncoder()
             encoder.outputFormatting = .prettyPrinted
             let json = try! encoder.encode(packages)
