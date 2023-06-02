@@ -18,7 +18,7 @@ public struct Outdated: AsyncParsableCommand {
         case xcode
     }
 
-    @Option(name: .shortAndLong, help: "The output format (markdown, json, xcode).")
+    @Option(name: .shortAndLong, help: "The output format (markdown, json, pretty-json, xcode).")
     var format: OutputFormat = .markdown
 
     @Flag(name: .short, help: "Verbose output.")
