@@ -10,20 +10,20 @@ This tool aims to help with that by allowing to quickly check if any requirement
 
 ## Installing
 
-### [Mint](https://github.com/yonaskolb/mint)
-
-swift-outdated can be installed via [Mint](https://github.com/yonaskolb/mint).
-
-```bash
-$ mint install kiliankoe/swift-outdated
-```
-
 ### Homebrew
 
 `swift-outdated` can be installed via Homebrew.
 
 ```bash
 $ brew install swift-outdated
+```
+
+### [Mint](https://github.com/yonaskolb/mint)
+
+`swift-outdated` can also be installed via [Mint](https://github.com/yonaskolb/mint).
+
+```bash
+$ mint install kiliankoe/swift-outdated
 ```
 
 ## Usage
@@ -42,8 +42,8 @@ This lists all your outdated dependencies, the currently resolved version and th
 
 ### Xcode
 
-swift-outdated also supports Xcode projects that use Swift packages for their dependency management. Either run it manually inside your repo
-or set up a Run Script Phase. In the latter case swift-outdated emits warnings for your outdated dependencies.
+`swift-outdated` also supports Xcode projects that use Swift packages for their dependency management. Either run it manually inside your repo
+or set up a Run Script Phase. In the latter case `swift-outdated` emits warnings for your outdated dependencies.
 
 <img width="247" alt="Xcode warnings screenshot" src="https://user-images.githubusercontent.com/2625584/104966116-6cedc400-59e0-11eb-9dc0-942f860e9e33.png">
 
