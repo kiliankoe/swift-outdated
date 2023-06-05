@@ -20,10 +20,9 @@ $ mint install kiliankoe/swift-outdated
 
 ### Homebrew
 
-`swift-outdated` can be installed via Homebrew, although for the time being via a custom tap.
+`swift-outdated` can be installed via Homebrew.
 
 ```bash
-$ brew tap kiliankoe/formulae
 $ brew install swift-outdated
 ```
 
@@ -33,13 +32,10 @@ Since `swift-outdated` installs with its name, it can be called just like a subc
 
 ```
 $ swift outdated
-
-| Package               | Current | Latest |                                                                                                                                                                   │
-|-----------------------|---------|--------|                                                                                                                                                                   │
-| Files                 | 4.1.1   | 4.2.0  |                                                                                                                                                                   │
-| Rainbow               | 3.1.5   | 4.0.1  |                                                                                                                                                                   │
-| Version               | 2.0.0   | 2.0.1  |                                                                                                                                                                   │
-| swift-argument-parser | 1.0.2   | 1.1.4  |                                                                                                                                                                   │
+| Package               | Current | Latest | URL                                                |
+|-----------------------|---------|--------|----------------------------------------------------|
+| rainbow               | 3.2.0   | 4.0.1  | https://github.com/onevcat/rainbow.git             |
+| swift-argument-parser | 1.1.4   | 1.2.2  | https://github.com/apple/swift-argument-parser.git |
 ```
 
 This lists all your outdated dependencies, the currently resolved version and the latest version available in their upstream repository.
