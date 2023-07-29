@@ -2,22 +2,25 @@ import Foundation
 import Files
 import ShellOut
 import Version
+import Logging
+
+let log = Logger(label: "SwiftOutdated")
 
 public struct SwiftPackage: Hashable {
-    let package: String
-    let repositoryURL: String
-    let revision: String?
-    let version: Version?
+    public let package: String
+    public let repositoryURL: String
+    public let revision: String?
+    public let version: Version?
 }
 
 extension SwiftPackage: Encodable {}
 
 extension SwiftPackage {
-    var hasResolvedVersion: Bool {
+    public var hasResolvedVersion: Bool {
         self.version != nil
     }
     
-    func availableVersions() -> [Version] {
+    public func availableVersions() -> [Version] {
         do {
             log.trace("Running git ls-remote for \(self.package).")
             let lsRemote = try shellOut(
@@ -47,9 +50,8 @@ extension SwiftPackage {
         }
     }
     
-    static func currentPackagePins() throws -> [Self] {
+    public static func currentPackagePins() throws -> [Self] {
         let file: File = try {
-            
             if let rootResolved = try? File(path: "Package.resolved") {
                 return rootResolved
             } else if let rootResolved = try? File(path: ".package.resolved") {
@@ -107,12 +109,11 @@ extension SwiftPackage {
 
 
 extension SwiftPackage {
-    
-    enum Error: Swift.Error, LocalizedError {
+    public enum Error: Swift.Error, LocalizedError {
         case notFound
         case notReadable
         
-        var errorDescription: String? {
+        public var errorDescription: String? {
             switch self {
             case .notFound:
                 return "No Package.resolved found in current working tree."

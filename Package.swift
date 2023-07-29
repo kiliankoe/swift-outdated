@@ -10,7 +10,10 @@ let package = Package(
     products: [
         .executable(
             name: "swift-outdated",
-            targets: ["SwiftOutdated"])
+            targets: ["SwiftOutdated"]),
+        .library(
+            name: "Outdated",
+            targets: ["Outdated"]),
     ],
     dependencies: [
         .package(url: "https://github.com/apple/swift-argument-parser.git", from: "1.0.0"),
@@ -22,16 +25,26 @@ let package = Package(
         .package(url: "https://github.com/onevcat/Rainbow.git", from: "3.0.0"),
     ],
     targets: [
+        .target(
+            name: "Outdated",
+            dependencies: [
+                .product(name: "Logging", package: "swift-log"),
+                "Files",
+                "Rainbow",
+                "ShellOut",
+                "SwiftyTextTable",
+                "Version",
+            ]
+        ),
         .executableTarget(
             name: "SwiftOutdated",
             dependencies: [
+                "Outdated",
                 .product(name: "ArgumentParser", package: "swift-argument-parser"),
                 .product(name: "Logging", package: "swift-log"),
                 "Version",
-                "ShellOut",
-                "Files",
                 "SwiftyTextTable",
-                "Rainbow",
-            ]),
+            ]
+        ),
     ]
 )

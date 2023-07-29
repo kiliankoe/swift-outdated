@@ -1,14 +1,15 @@
 import ArgumentParser
 import Dispatch
 import Foundation
+import Logging
+import Outdated
 import SwiftyTextTable
 import Version
-import Logging
 
 let log = Logger(label: "SwiftOutdated")
 
 @main
-public struct Outdated: AsyncParsableCommand {
+public struct SwiftOutdated: AsyncParsableCommand {
     public init() {}
 
     enum OutputFormat: String, ExpressibleByArgument {
@@ -145,9 +146,4 @@ public struct Outdated: AsyncParsableCommand {
             return logHandler
         }
     }
-}
-
-struct PackageCollection: Encodable {
-    var outdatedPackages: [OutdatedPackage]
-    var ignoredPackages: [SwiftPackage]
 }
