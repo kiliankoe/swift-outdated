@@ -1,14 +1,15 @@
 import ArgumentParser
 import Dispatch
 import Foundation
+import Logging
+import Outdated
 import SwiftyTextTable
 import Version
-import Logging
 
 let log = Logger(label: "SwiftOutdated")
 
 @main
-public struct Outdated: AsyncParsableCommand {
+public struct SwiftOutdated: AsyncParsableCommand {
     public init() {}
 
     enum OutputFormat: String, ExpressibleByArgument {
@@ -36,7 +37,7 @@ public struct Outdated: AsyncParsableCommand {
         swift-outdated automatically detects if it is run via an Xcode run script phase and will emit warnings for
         Xcode's issue navigator.
         """,
-        version: "0.5.1"
+        version: "0.6.0"
     )
 
     public func run() async throws {
@@ -145,9 +146,4 @@ public struct Outdated: AsyncParsableCommand {
             return logHandler
         }
     }
-}
-
-struct PackageCollection: Encodable {
-    var outdatedPackages: [OutdatedPackage]
-    var ignoredPackages: [SwiftPackage]
 }

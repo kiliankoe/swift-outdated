@@ -3,24 +3,31 @@ import Version
 import SwiftyTextTable
 import Rainbow
 
-struct OutdatedPackage {
-    let package: String
-    let currentVersion: Version
-    let latestVersion: Version
-    let url: String
+public struct OutdatedPackage {
+    public let package: String
+    public let currentVersion: Version
+    public let latestVersion: Version
+    public let url: String
+
+    public init(package: String, currentVersion: Version, latestVersion: Version, url: String) {
+        self.package = package
+        self.currentVersion = currentVersion
+        self.latestVersion = latestVersion
+        self.url = url
+    }
 }
 
 extension OutdatedPackage: Encodable {}
 
 extension OutdatedPackage: TextTableRepresentable {
-    static let columnHeaders = [
+    public static let columnHeaders = [
         "Package",
         "Current",
         "Latest",
         "URL"
     ]
 
-    var tableValues: [CustomStringConvertible] {
+    public var tableValues: [CustomStringConvertible] {
         let majorDiff = latestVersion.major - currentVersion.major
         var latestVersion = self.latestVersion.description
         switch majorDiff {

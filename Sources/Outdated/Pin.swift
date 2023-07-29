@@ -12,7 +12,6 @@ struct PinV1: Decodable {
     }
 }
 
-
 struct PinV2: Decodable {
     let identity: String
     let location: String
