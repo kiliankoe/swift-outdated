@@ -21,6 +21,9 @@ public struct SwiftOutdated: AsyncParsableCommand {
     @Option(name: .shortAndLong, help: "The output format (markdown, json, xcode).")
     var format: OutputFormat = .markdown
 
+    @Flag(name: .shortAndLong, help: "Ignore pre-release versions.")
+    var ignorePrerelease: Bool = false
+
     @Flag(name: .short, help: "Verbose output.")
     var verbose: Bool = false
 
@@ -71,7 +74,7 @@ public struct SwiftOutdated: AsyncParsableCommand {
 
         let outdatedPackages = versions
             .compactMap { package, allVersions -> OutdatedPackage? in
-                if let current = package.version, let latest = allVersions.last, current != latest {
+                if let current = package.version, let latest = getLatestVersion(from: allVersions), current != latest {
                     log.info("Package \(package.package) is outdated.")
                     return OutdatedPackage(package: package.package, currentVersion: current, latestVersion: latest, url: package.repositoryURL)
                 } else {
@@ -85,6 +88,14 @@ public struct SwiftOutdated: AsyncParsableCommand {
             log.info("Ignoring \(ignoredPackages.map { $0.package }.joined(separator: ", ")) because of non-version pins.")
         }
         return PackageCollection(outdatedPackages: outdatedPackages, ignoredPackages: ignoredPackages)
+    }
+
+    private func getLatestVersion(from allVersions: [Version]) -> Version? {
+        if ignorePrerelease {
+            return allVersions.last(where: { $0.prereleaseIdentifiers.isEmpty })
+        } else {
+            return allVersions.last
+        }
     }
 
     func output(_ packages: PackageCollection) {
