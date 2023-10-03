@@ -1,5 +1,6 @@
 import ArgumentParser
 import Dispatch
+import Files
 import Foundation
 import Logging
 import Outdated
@@ -27,6 +28,9 @@ public struct SwiftOutdated: AsyncParsableCommand {
     @Flag(name: .short, help: "Verbose output.")
     var verbose: Bool = false
 
+    @Argument(help: "The directory containing the Package.resolved file", completion: .directory)
+    var path: String = ""
+
     public static let configuration = CommandConfiguration(
         commandName: "swift-outdated",
         abstract: "Check for outdated dependencies.",
@@ -45,7 +49,7 @@ public struct SwiftOutdated: AsyncParsableCommand {
 
     public func run() async throws {
         setupLogging()
-        let pins = try SwiftPackage.currentPackagePins()
+        let pins = try SwiftPackage.currentPackagePins(in: Folder(path: path))
         let packages = await collectVersions(for: pins)
         output(packages)
     }

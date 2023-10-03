@@ -1,5 +1,6 @@
 import Foundation
 import Files
+import Rainbow
 import ShellOut
 import Version
 import Logging
@@ -50,30 +51,43 @@ extension SwiftPackage {
         }
     }
     
-    public static func currentPackagePins() throws -> [Self] {
+    public static func currentPackagePins(in folder: Folder) throws -> [Self] {
         let file: File = try {
-            if let rootResolved = try? File(path: "Package.resolved") {
-                return rootResolved
-            } else if let rootResolved = try? File(path: ".package.resolved") {
-                return rootResolved
+            let possibleRootResolvedPaths = [
+                "Package.resolved",
+                ".package.resolved",
+                "xcshareddata/swiftpm/Package.resolved",
+                "project.xcworkspace/xcshareddata/swiftpm/Package.resolved"
+            ]
+            if let resolvedPath = possibleRootResolvedPaths.lazy.compactMap({ try? folder.file(at: $0) }).first {
+                log.info("Found package pins at \(resolvedPath.path(relativeTo: folder))")
+                return resolvedPath
             }
 
-            if let xcodeWorkspace = Folder.current.subfolders.first(where: { $0.name.hasSuffix("xcworkspace") }) {
+            let xcodeWorkspaces = folder.subfolders.filter { $0.name.hasSuffix("xcworkspace") }
+            if let xcodeWorkspace = xcodeWorkspaces.first {
+                if xcodeWorkspaces.count > 1 {
+                    print("Multiple workspaces found. Using \(xcodeWorkspace.path(relativeTo: folder))".yellow)
+                }
                 let resolvedPath = "xcshareddata/swiftpm/Package.resolved"
                 guard xcodeWorkspace.containsFile(at: resolvedPath) else {
+                    log.info("Found workspace package pins at \(resolvedPath)")
                     throw Error.notFound
                 }
-                return try File(path: xcodeWorkspace.path + resolvedPath)
+                return try xcodeWorkspace.file(at: resolvedPath)
             }
 
-            if let xcodeProject = Folder.current.subfolders.first(where: { $0.name.hasSuffix("xcodeproj") }) {
+            let xcodeProjects = folder.subfolders.filter { $0.name.hasSuffix("xcodeproj") }
+            if let xcodeProject = xcodeProjects.first {
+                if xcodeProjects.count > 1 {
+                    print("Multiple projects found. Using \(xcodeProject.path(relativeTo: folder))".yellow)
+                }
                 let resolvedPath = "project.xcworkspace/xcshareddata/swiftpm/Package.resolved"
                 guard xcodeProject.containsFile(at: resolvedPath) else {
-                    print(xcodeProject.path)
-                    print(resolvedPath)
+                    log.info("Found project package pins at \(resolvedPath)")
                     throw Error.notFound
                 }
-                return try File(path: xcodeProject.path + resolvedPath)
+                return try xcodeProject.file(at: resolvedPath)
             }
 
             throw Error.notFound
