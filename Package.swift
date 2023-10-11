@@ -28,7 +28,6 @@ let package = Package(
         .target(
             name: "Outdated",
             dependencies: [
-                .product(name: "Logging", package: "swift-log"),
                 "Files",
                 "Rainbow",
                 "ShellOut",
