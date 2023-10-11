@@ -34,16 +34,14 @@ let package = Package(
                 "ShellOut",
                 "SwiftyTextTable",
                 "Version",
+                .product(name: "ArgumentParser", package: "swift-argument-parser"),
+                .product(name: "Logging", package: "swift-log"),
             ]
         ),
         .executableTarget(
             name: "SwiftOutdated",
             dependencies: [
                 "Outdated",
-                .product(name: "ArgumentParser", package: "swift-argument-parser"),
-                .product(name: "Logging", package: "swift-log"),
-                "Version",
-                "SwiftyTextTable",
             ]
         ),
     ]
