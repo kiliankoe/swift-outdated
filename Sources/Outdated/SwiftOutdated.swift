@@ -8,7 +8,6 @@ import Version
 
 let log = Logger(label: "SwiftOutdated")
 
-@main
 public struct SwiftOutdated: AsyncParsableCommand {
     public init() {}
 
