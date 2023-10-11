@@ -5,8 +5,6 @@ import ShellOut
 import Version
 import Logging
 
-let log = Logger(label: "SwiftOutdated")
-
 public struct SwiftPackage: Hashable {
     public let package: String
     public let repositoryURL: String

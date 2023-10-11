@@ -1,5 +1,4 @@
 import Foundation
-import Outdated
 
 struct PackageCollection: Encodable {
     var outdatedPackages: [OutdatedPackage]

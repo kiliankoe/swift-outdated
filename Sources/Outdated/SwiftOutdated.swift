@@ -3,7 +3,6 @@ import Dispatch
 import Files
 import Foundation
 import Logging
-import Outdated
 import SwiftyTextTable
 import Version
 
