@@ -42,8 +42,6 @@ let package = Package(
                 "Outdated",
                 .product(name: "ArgumentParser", package: "swift-argument-parser"),
                 .product(name: "Logging", package: "swift-log"),
-                "Version",
-                "SwiftyTextTable",
             ]
         ),
     ]
