@@ -40,6 +40,20 @@ $ swift outdated
 
 This lists all your outdated dependencies, the currently resolved version and the latest version available in their upstream repository.
 
+### Library
+
+This packages also exposes a library target called `Outdated`. Use this if you want to integrate the functionality into your project.
+
+Here's a basic usage example.
+
+```swift
+import Outdated
+
+let pins = try SwiftPackage.currentPackagePins(in: .current)
+let packages = await SwiftPackage.collectVersions(for: pins, ignoringPrerelease: true)
+packages.output(format: .markdown)
+```
+
 ### Xcode
 
 `swift-outdated` also supports Xcode projects that use Swift packages for their dependency management. Either run it manually inside your repo

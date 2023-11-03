@@ -121,6 +121,58 @@ extension SwiftPackage {
     }
 }
 
+extension SwiftPackage {
+    public static func collectVersions(for packages: [SwiftPackage], ignoringPrerelease: Bool) async -> PackageCollection {
+        log.info("Collecting versions for \(packages.map { $0.package }.joined(separator: ", ")).")
+        let versions = await withTaskGroup(of: (SwiftPackage, [Version]?).self) { group in
+            for package in packages where package.hasResolvedVersion {
+                log.info("Package \(package.package) has resolved version, queueing version fetch.")
+                group.addTask {
+                    let availableVersions = package.availableVersions()
+                    log.info("Found \(availableVersions.count) versions for \(package.package).")
+                    return (package, availableVersions)
+                }
+            }
+
+            var availableVersions = [SwiftPackage: [Version]]()
+            for await (package, versions) in group {
+                if let versions = versions {
+                    availableVersions[package] = versions
+                }
+            }
+
+            return availableVersions
+        }
+
+        let outdatedPackages = versions
+            .compactMap { package, allVersions -> OutdatedPackage? in
+                if let current = package.version, 
+                   let latest = getLatestVersion(from: allVersions, ignoringPrerelease: ignoringPrerelease),
+                   current != latest 
+                {
+                    log.info("Package \(package.package) is outdated.")
+                    return OutdatedPackage(package: package.package, currentVersion: current, latestVersion: latest, url: package.repositoryURL)
+                } else {
+                    log.info("Package \(package.package) is up to date.")
+                }
+                return nil
+            }
+            .sorted(by: { $0.package < $1.package })
+        let ignoredPackages = packages.filter { !$0.hasResolvedVersion }
+        if !ignoredPackages.isEmpty {
+            log.info("Ignoring \(ignoredPackages.map { $0.package }.joined(separator: ", ")) because of non-version pins.")
+        }
+        return PackageCollection(outdatedPackages: outdatedPackages, ignoredPackages: ignoredPackages)
+    }
+
+    private static func getLatestVersion(from allVersions: [Version], ignoringPrerelease: Bool) -> Version? {
+        if ignoringPrerelease {
+            return allVersions.last(where: { $0.prereleaseIdentifiers.isEmpty })
+        } else {
+            return allVersions.last
+        }
+    }
+}
 
 extension SwiftPackage {
     public enum Error: Swift.Error, LocalizedError {
