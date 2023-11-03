@@ -14,4 +14,8 @@ uninstall:
 clean:
 	rm -rf .build
 
-.PHONY: uninstall clean
+bump-homebrew:
+	VERSION=$$(grep -Eo 'version: \"[0-9.]+\"' ./Sources/SwiftOutdated/SwiftOutdated.swift | sed 's/version: //' | tr -d \"); \
+	brew bump-formula-pr --strict swift-outdated --tag=$$VERSION --version=$$VERSION
+
+.PHONY: uninstall clean bump-homebrew
