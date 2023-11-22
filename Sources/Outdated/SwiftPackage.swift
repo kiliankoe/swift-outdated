@@ -122,7 +122,7 @@ extension SwiftPackage {
 }
 
 extension SwiftPackage {
-    public static func collectVersions(for packages: [SwiftPackage], ignoringPrerelease: Bool) async -> PackageCollection {
+    public static func collectVersions(for packages: [SwiftPackage], ignoringPrerelease: Bool, onlyMajorUpdates: Bool) async -> PackageCollection {
         log.info("Collecting versions for \(packages.map { $0.package }.joined(separator: ", ")).")
         let versions = await withTaskGroup(of: (SwiftPackage, [Version]?).self) { group in
             for package in packages where package.hasResolvedVersion {
@@ -147,8 +147,8 @@ extension SwiftPackage {
         let outdatedPackages = versions
             .compactMap { package, allVersions -> OutdatedPackage? in
                 if let current = package.version, 
-                   let latest = getLatestVersion(from: allVersions, ignoringPrerelease: ignoringPrerelease),
-                   current != latest 
+                   let latest = getLatestVersion(from: allVersions, currentVersion: current, ignoringPrerelease: ignoringPrerelease, onlyMajorUpdates: onlyMajorUpdates),
+                   current != latest
                 {
                     log.info("Package \(package.package) is outdated.")
                     return OutdatedPackage(package: package.package, currentVersion: current, latestVersion: latest, url: package.repositoryURL)
@@ -165,12 +165,18 @@ extension SwiftPackage {
         return PackageCollection(outdatedPackages: outdatedPackages, ignoredPackages: ignoredPackages)
     }
 
-    private static func getLatestVersion(from allVersions: [Version], ignoringPrerelease: Bool) -> Version? {
+    private static func getLatestVersion(from allVersions: [Version], currentVersion: Version, ignoringPrerelease: Bool, onlyMajorUpdates: Bool) -> Version? {
+        var validVersions: [Version] = allVersions
+
         if ignoringPrerelease {
-            return allVersions.last(where: { $0.prereleaseIdentifiers.isEmpty })
-        } else {
-            return allVersions.last
+            validVersions = validVersions.filter { $0.prereleaseIdentifiers.isEmpty }
         }
+
+        if onlyMajorUpdates {
+            validVersions = validVersions.filter { ($0.major - currentVersion.major) > 0 }
+        }
+
+        return validVersions.last
     }
 }
 
