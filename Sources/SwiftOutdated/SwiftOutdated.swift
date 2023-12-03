@@ -18,7 +18,7 @@ public struct SwiftOutdated: AsyncParsableCommand {
     var ignorePrerelease: Bool = false
 
     @Flag(name: .long, help: "Output only packages with major version updates")
-    var onlyMajorUpdates: Bool = false
+    var onlyMajor: Bool = false
 
     @Flag(name: .short, help: "Verbose output.")
     var verbose: Bool = false
@@ -45,7 +45,7 @@ public struct SwiftOutdated: AsyncParsableCommand {
     public func run() async throws {
         setupLogging()
         let pins = try SwiftPackage.currentPackagePins(in: Folder(path: path))
-        let packages = await SwiftPackage.collectVersions(for: pins, ignoringPrerelease: ignorePrerelease, onlyMajorUpdates: onlyMajorUpdates)
+        let packages = await SwiftPackage.collectVersions(for: pins, ignoringPrerelease: ignorePrerelease, onlyMajorUpdates: onlyMajor)
         packages.output(format: isRunningInXcode ? .xcode : format.libFormat)
     }
 
