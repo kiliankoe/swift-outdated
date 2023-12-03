@@ -39,7 +39,7 @@ public struct SwiftOutdated: AsyncParsableCommand {
         swift-outdated automatically detects if it is run via an Xcode run script phase and will emit warnings for
         Xcode's issue navigator.
         """,
-        version: "0.8.1"
+        version: "0.9.0"
     )
 
     public func run() async throws {
