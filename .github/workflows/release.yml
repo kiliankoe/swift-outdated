@@ -1,0 +1,171 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - '*'  # Triggers on version tags like 1.0.0, 0.9.1, etc.
+
+jobs:
+  build-macos:
+    name: Build macOS Binary
+    runs-on: macos-latest
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - name: Setup Swift
+      uses: swift-actions/setup-swift@v2
+
+    - name: Get tag name
+      id: get_tag
+      run: echo "TAG_NAME=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+
+    - name: Build Release Binary
+      run: |
+        swift build -c release --disable-sandbox
+        # Create a distributable directory structure
+        mkdir -p swift-outdated-${{ steps.get_tag.outputs.TAG_NAME }}-macos
+        cp .build/release/swift-outdated swift-outdated-${{ steps.get_tag.outputs.TAG_NAME }}-macos/
+        cp README.md swift-outdated-${{ steps.get_tag.outputs.TAG_NAME }}-macos/
+        cp LICENSE swift-outdated-${{ steps.get_tag.outputs.TAG_NAME }}-macos/
+
+    - name: Create Archive
+      run: |
+        tar -czf swift-outdated-${{ steps.get_tag.outputs.TAG_NAME }}-macos.tar.gz swift-outdated-${{ steps.get_tag.outputs.TAG_NAME }}-macos
+        zip -r swift-outdated-${{ steps.get_tag.outputs.TAG_NAME }}-macos.zip swift-outdated-${{ steps.get_tag.outputs.TAG_NAME }}-macos
+
+    - name: Test Binary
+      run: |
+        ./swift-outdated-${{ steps.get_tag.outputs.TAG_NAME }}-macos/swift-outdated --help
+        echo "macOS binary test passed"
+
+    - name: Upload macOS Artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: macos-binaries
+        path: |
+          swift-outdated-${{ steps.get_tag.outputs.TAG_NAME }}-macos.tar.gz
+          swift-outdated-${{ steps.get_tag.outputs.TAG_NAME }}-macos.zip
+
+  build-linux:
+    name: Build Linux Binary
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - name: Setup Swift
+      uses: swift-actions/setup-swift@v2
+
+    - name: Get tag name
+      id: get_tag
+      run: echo "TAG_NAME=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+
+    - name: Build Release Binary
+      run: |
+        swift build -c release
+        # Create a distributable directory structure
+        mkdir -p swift-outdated-${{ steps.get_tag.outputs.TAG_NAME }}-linux
+        cp .build/release/swift-outdated swift-outdated-${{ steps.get_tag.outputs.TAG_NAME }}-linux/
+        cp README.md swift-outdated-${{ steps.get_tag.outputs.TAG_NAME }}-linux/
+        cp LICENSE swift-outdated-${{ steps.get_tag.outputs.TAG_NAME }}-linux/
+
+    - name: Create Archive
+      run: |
+        tar -czf swift-outdated-${{ steps.get_tag.outputs.TAG_NAME }}-linux.tar.gz swift-outdated-${{ steps.get_tag.outputs.TAG_NAME }}-linux
+        zip -r swift-outdated-${{ steps.get_tag.outputs.TAG_NAME }}-linux.zip swift-outdated-${{ steps.get_tag.outputs.TAG_NAME }}-linux
+
+    - name: Test Binary
+      run: |
+        ./swift-outdated-${{ steps.get_tag.outputs.TAG_NAME }}-linux/swift-outdated --help
+        echo "Linux binary test passed"
+
+    - name: Upload Linux Artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: linux-binaries
+        path: |
+          swift-outdated-${{ steps.get_tag.outputs.TAG_NAME }}-linux.tar.gz
+          swift-outdated-${{ steps.get_tag.outputs.TAG_NAME }}-linux.zip
+
+  release:
+    name: Create Release
+    runs-on: ubuntu-latest
+    needs: [build-macos, build-linux]
+
+    permissions:
+      contents: write  # Required to create releases and upload assets
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - name: Get tag name
+      id: get_tag
+      run: echo "TAG_NAME=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+
+    - name: Download macOS Artifacts
+      uses: actions/download-artifact@v4
+      with:
+        name: macos-binaries
+
+    - name: Download Linux Artifacts
+      uses: actions/download-artifact@v4
+      with:
+        name: linux-binaries
+
+    - name: Generate Release Notes
+      id: release_notes
+      run: |
+        # Use tag as version directly (no 'v' prefix to remove)
+        VERSION=${{ steps.get_tag.outputs.TAG_NAME }}
+
+        # Create release notes
+        cat > release_notes.md << EOF
+        ## swift-outdated ${VERSION}
+
+        ### Installation
+
+        #### Homebrew
+        \`\`\`bash
+        brew install swift-outdated
+        \`\`\`
+
+        #### Manual Installation
+        1. Download the appropriate archive below
+        2. Extract the binary
+        3. Move \`swift-outdated\` to a directory in your PATH (e.g., \`/usr/local/bin\`)
+
+        #### Mint
+        \`\`\`bash
+        mint install kiliankoe/swift-outdated@${VERSION}
+        \`\`\`
+
+        ### Usage
+        \`\`\`bash
+        swift outdated
+        \`\`\`
+
+        See the [README](https://github.com/kiliankoe/swift-outdated#readme) for more details.
+        EOF
+
+        echo "RELEASE_NOTES_FILE=release_notes.md" >> $GITHUB_OUTPUT
+
+    - name: Create Release
+      uses: softprops/action-gh-release@v2
+      with:
+        tag_name: ${{ steps.get_tag.outputs.TAG_NAME }}
+        name: swift-outdated ${{ steps.get_tag.outputs.TAG_NAME }}
+        body_path: ${{ steps.release_notes.outputs.RELEASE_NOTES_FILE }}
+        draft: false
+        prerelease: ${{ contains(steps.get_tag.outputs.TAG_NAME, '-') }}  # Mark as prerelease if tag contains hyphen (e.g., 1.0.0-beta)
+        files: |
+          swift-outdated-${{ steps.get_tag.outputs.TAG_NAME }}-macos.tar.gz
+          swift-outdated-${{ steps.get_tag.outputs.TAG_NAME }}-macos.zip
+          swift-outdated-${{ steps.get_tag.outputs.TAG_NAME }}-linux.tar.gz
+          swift-outdated-${{ steps.get_tag.outputs.TAG_NAME }}-linux.zip
+        generate_release_notes: true  # GitHub will append auto-generated notes based on commits
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
