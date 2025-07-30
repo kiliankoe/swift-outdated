@@ -3,7 +3,7 @@ name: Release
 on:
   push:
     tags:
-      - '*'  # Triggers on version tags like 1.0.0, 0.9.1, etc.
+      - '*'
 
 jobs:
   build-macos:
@@ -96,7 +96,7 @@ jobs:
     needs: [build-macos, build-linux]
 
     permissions:
-      contents: write  # Required to create releases and upload assets
+      contents: write
 
     steps:
     - name: Checkout
@@ -160,12 +160,13 @@ jobs:
         name: swift-outdated ${{ steps.get_tag.outputs.TAG_NAME }}
         body_path: ${{ steps.release_notes.outputs.RELEASE_NOTES_FILE }}
         draft: false
-        prerelease: ${{ contains(steps.get_tag.outputs.TAG_NAME, '-') }}  # Mark as prerelease if tag contains hyphen (e.g., 1.0.0-beta)
+        # Mark as prerelease if tag contains hyphen (e.g., 1.0.0-beta)
+        prerelease: ${{ contains(steps.get_tag.outputs.TAG_NAME, '-') }}
         files: |
           swift-outdated-${{ steps.get_tag.outputs.TAG_NAME }}-macos.tar.gz
           swift-outdated-${{ steps.get_tag.outputs.TAG_NAME }}-macos.zip
           swift-outdated-${{ steps.get_tag.outputs.TAG_NAME }}-linux.tar.gz
           swift-outdated-${{ steps.get_tag.outputs.TAG_NAME }}-linux.zip
-        generate_release_notes: true  # GitHub will append auto-generated notes based on commits
+        generate_release_notes: true
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
