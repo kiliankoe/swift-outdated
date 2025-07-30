@@ -27,17 +27,6 @@ jobs:
     - name: Build
       run: swift build
 
-    - name: Test
-      run: swift test --verbose
-
-  build-release:
-    name: Build Release
-    runs-on: macos-latest
-
-    steps:
-    - name: Checkout
-      uses: actions/checkout@v4
-
     - name: Build Release
       run: swift build -c release --disable-sandbox
 
@@ -46,6 +35,9 @@ jobs:
         .build/release/swift-outdated --help
         # Test that it can parse Package.resolved in the current directory
         .build/release/swift-outdated --format json > /dev/null || true
+
+    - name: Test
+      run: swift test --verbose
 
   lint:
     name: Swift Format Check
