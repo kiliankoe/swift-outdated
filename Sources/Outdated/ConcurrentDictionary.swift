@@ -1,6 +1,6 @@
 import Foundation
 
-class ConcurrentDictionary<Key: Hashable, Value>: Collection {
+class ConcurrentDictionary<Key: Hashable & Sendable, Value: Sendable>: Collection, @unchecked Sendable {
     private var dictionary: [Key: Value]
     private let concurrentQueue = DispatchQueue(label: UUID().uuidString, attributes: .concurrent)
 

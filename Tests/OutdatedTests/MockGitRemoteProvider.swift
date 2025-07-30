@@ -1,7 +1,7 @@
 import Foundation
 @testable import Outdated
 
-public class MockGitRemoteProvider: GitRemoteProvider {
+public final class MockGitRemoteProvider: GitRemoteProvider, @unchecked Sendable {
     private var tagRefsResponses: [String: String] = [:]
 
     public init() {}

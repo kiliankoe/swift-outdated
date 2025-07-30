@@ -7,7 +7,7 @@ import Logging
 
 let log = Logger(label: "SwiftOutdated")
 
-public struct SwiftPackage {
+public struct SwiftPackage: Sendable {
     public let package: String
     public let repositoryURL: String
     public let revision: String?

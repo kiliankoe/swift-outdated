@@ -1,7 +1,7 @@
 import Foundation
 import ShellOut
 
-public protocol GitRemoteProvider {
+public protocol GitRemoteProvider: Sendable {
     func getRemoteTags(repositoryURL: String) throws -> String
 }
 

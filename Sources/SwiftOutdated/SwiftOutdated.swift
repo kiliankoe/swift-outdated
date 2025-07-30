@@ -8,7 +8,7 @@ import Outdated
 let log = Logger(label: "SwiftOutdated")
 
 @main
-public struct SwiftOutdated: AsyncParsableCommand {
+public struct SwiftOutdated: AsyncParsableCommand, Sendable {
     public init() {}
 
     @Option(name: .shortAndLong, help: "The output format (markdown, json, xcode).")
