@@ -7,14 +7,44 @@ import Logging
 
 let log = Logger(label: "SwiftOutdated")
 
-public struct SwiftPackage: Hashable {
+public struct SwiftPackage: Sendable {
     public let package: String
     public let repositoryURL: String
     public let revision: String?
     public let version: Version?
+    
+    private let gitProvider: GitRemoteProvider
+    
+    public init(package: String, repositoryURL: String, revision: String?, version: Version?, gitProvider: GitRemoteProvider = ShellGitRemoteProvider()) {
+        self.package = package
+        self.repositoryURL = repositoryURL
+        self.revision = revision
+        self.version = version
+        self.gitProvider = gitProvider
+    }
 }
 
-extension SwiftPackage: Encodable {}
+extension SwiftPackage: Encodable {
+    enum CodingKeys: String, CodingKey {
+        case package, repositoryURL, revision, version
+    }
+}
+
+extension SwiftPackage: Hashable {
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(package)
+        hasher.combine(repositoryURL)
+        hasher.combine(revision)
+        hasher.combine(version)
+    }
+    
+    public static func == (lhs: SwiftPackage, rhs: SwiftPackage) -> Bool {
+        return lhs.package == rhs.package &&
+               lhs.repositoryURL == rhs.repositoryURL &&
+               lhs.revision == rhs.revision &&
+               lhs.version == rhs.version
+    }
+}
 
 extension SwiftPackage {
     public var hasResolvedVersion: Bool {
@@ -24,10 +54,7 @@ extension SwiftPackage {
     public func availableVersions() -> [Version] {
         do {
             log.trace("Running git ls-remote for \(self.package).")
-            let lsRemote = try shellOut(
-                to: "git",
-                arguments: ["ls-remote", "--tags", self.repositoryURL]
-            )
+            let lsRemote = try gitProvider.getRemoteTags(repositoryURL: self.repositoryURL)
             return lsRemote
                 .split(separator: "\n")
                 .map {

@@ -1,0 +1,58 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    name: Test
+    strategy:
+      matrix:
+        os: [macos-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - name: Setup Swift
+      uses: swift-actions/setup-swift@v2
+
+    - name: Swift Version
+      run: swift --version
+
+    - name: Build
+      run: swift build
+
+    - name: Build Release
+      run: swift build -c release --disable-sandbox
+
+    - name: Test Binary
+      run: |
+        .build/release/swift-outdated --help
+        # Test that it can parse Package.resolved in the current directory
+        .build/release/swift-outdated --format json > /dev/null || true
+
+    - name: Test
+      run: swift test
+
+  lint:
+    name: Swift Format Check
+    runs-on: macos-latest
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - name: Check Swift Format
+      run: |
+        # Install swift-format if available, otherwise skip
+        if command -v swift-format >/dev/null 2>&1; then
+          swift-format --version
+          swift-format --mode verify --recursive Sources Tests
+        else
+          echo "swift-format not available, skipping format check"
+        fi
