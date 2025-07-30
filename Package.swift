@@ -22,7 +22,8 @@ let package = Package(
         .package(url: "https://github.com/johnsundell/ShellOut.git", from: "2.3.0"),
         .package(url: "https://github.com/johnsundell/Files.git", from: "4.0.0"),
         .package(url: "https://github.com/scottrhoyt/SwiftyTextTable.git", from: "0.9.0"),
-        .package(url: "https://github.com/onevcat/Rainbow.git", from: "3.0.0"),
+        .package(url: "https://github.com/onevcat/Rainbow.git", from: "3.2.0"),
+        .package(url: "https://github.com/apple/swift-testing.git", from: "6.1.1"),
     ],
     targets: [
         .target(
@@ -42,6 +43,14 @@ let package = Package(
                 "Outdated",
                 .product(name: "ArgumentParser", package: "swift-argument-parser"),
                 .product(name: "Logging", package: "swift-log"),
+            ]
+        ),
+        .testTarget(
+            name: "OutdatedTests",
+            dependencies: [
+                "Outdated",
+                "Version",
+                .product(name: "Testing", package: "swift-testing"),
             ]
         ),
     ]
