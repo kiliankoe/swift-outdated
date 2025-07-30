@@ -37,7 +37,7 @@ jobs:
         .build/release/swift-outdated --format json > /dev/null || true
 
     - name: Test
-      run: swift test --verbose
+      run: swift test
 
   lint:
     name: Swift Format Check
