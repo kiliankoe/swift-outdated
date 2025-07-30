@@ -17,7 +17,7 @@ public struct SwiftOutdated: AsyncParsableCommand, Sendable {
     @Flag(name: .shortAndLong, help: "Ignore pre-release versions.")
     var ignorePrerelease: Bool = false
 
-    @Flag(name: .long, help: "Output only packages with major version updates")
+    @Flag(name: [.customShort("m"), .long], help: "Output only packages with major version updates")
     var onlyMajor: Bool = false
 
     @Flag(name: .short, help: "Verbose output.")
