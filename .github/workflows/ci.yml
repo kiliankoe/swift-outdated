@@ -21,6 +21,16 @@ jobs:
     - name: Setup Swift
       uses: swift-actions/setup-swift@v2
 
+    - name: Cache Swift Package Manager
+      uses: actions/cache@v4
+      with:
+        path: |
+          .build
+          ~/.cache/org.swift.swiftpm
+        key: ${{ runner.os }}-spm-${{ hashFiles('**/Package.resolved', '**/Package.swift') }}
+        restore-keys: |
+          ${{ runner.os }}-spm-
+
     - name: Swift Version
       run: swift --version
 
