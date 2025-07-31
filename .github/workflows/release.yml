@@ -116,49 +116,11 @@ jobs:
       with:
         name: linux-binaries
 
-    - name: Generate Release Notes
-      id: release_notes
-      run: |
-        # Use tag as version directly (no 'v' prefix to remove)
-        VERSION=${{ steps.get_tag.outputs.TAG_NAME }}
-
-        # Create release notes
-        cat > release_notes.md << EOF
-        ## swift-outdated ${VERSION}
-
-        ### Installation
-
-        #### Homebrew
-        \`\`\`bash
-        brew install swift-outdated
-        \`\`\`
-
-        #### Manual Installation
-        1. Download the appropriate archive below
-        2. Extract the binary
-        3. Move \`swift-outdated\` to a directory in your PATH (e.g., \`/usr/local/bin\`)
-
-        #### Mint
-        \`\`\`bash
-        mint install kiliankoe/swift-outdated@${VERSION}
-        \`\`\`
-
-        ### Usage
-        \`\`\`bash
-        swift outdated
-        \`\`\`
-
-        See the [README](https://github.com/kiliankoe/swift-outdated#readme) for more details.
-        EOF
-
-        echo "RELEASE_NOTES_FILE=release_notes.md" >> $GITHUB_OUTPUT
-
     - name: Create Release
       uses: softprops/action-gh-release@v2
       with:
         tag_name: ${{ steps.get_tag.outputs.TAG_NAME }}
         name: swift-outdated ${{ steps.get_tag.outputs.TAG_NAME }}
-        body_path: ${{ steps.release_notes.outputs.RELEASE_NOTES_FILE }}
         draft: false
         # Mark as prerelease if tag contains hyphen (e.g., 1.0.0-beta)
         prerelease: ${{ contains(steps.get_tag.outputs.TAG_NAME, '-') }}
