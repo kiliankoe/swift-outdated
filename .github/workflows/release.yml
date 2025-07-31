@@ -65,7 +65,7 @@ jobs:
 
     - name: Build Release Binary
       run: |
-        swift build -c release
+        swift build -c release --disable-sandbox
         # Create a distributable directory structure
         mkdir -p swift-outdated-${{ steps.get_tag.outputs.TAG_NAME }}-linux
         cp .build/release/swift-outdated swift-outdated-${{ steps.get_tag.outputs.TAG_NAME }}-linux/
