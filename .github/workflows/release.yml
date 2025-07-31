@@ -32,7 +32,7 @@ jobs:
 
     - name: Create Archive
       run: |
-        tar -czf swift-outdated-${{ steps.get_tag.outputs.TAG_NAME }}-macos.tar.gz swift-outdated-${{ steps.get_tag.outputs.TAG_NAME }}-macos
+        # tar -czf swift-outdated-${{ steps.get_tag.outputs.TAG_NAME }}-macos.tar.gz swift-outdated-${{ steps.get_tag.outputs.TAG_NAME }}-macos
         zip -r swift-outdated-${{ steps.get_tag.outputs.TAG_NAME }}-macos.zip swift-outdated-${{ steps.get_tag.outputs.TAG_NAME }}-macos
 
     - name: Test Binary
@@ -45,7 +45,7 @@ jobs:
       with:
         name: macos-binaries
         path: |
-          swift-outdated-${{ steps.get_tag.outputs.TAG_NAME }}-macos.tar.gz
+          # swift-outdated-${{ steps.get_tag.outputs.TAG_NAME }}-macos.tar.gz
           swift-outdated-${{ steps.get_tag.outputs.TAG_NAME }}-macos.zip
 
   build-linux:
@@ -74,7 +74,7 @@ jobs:
 
     - name: Create Archive
       run: |
-        tar -czf swift-outdated-${{ steps.get_tag.outputs.TAG_NAME }}-linux.tar.gz swift-outdated-${{ steps.get_tag.outputs.TAG_NAME }}-linux
+        # tar -czf swift-outdated-${{ steps.get_tag.outputs.TAG_NAME }}-linux.tar.gz swift-outdated-${{ steps.get_tag.outputs.TAG_NAME }}-linux
         zip -r swift-outdated-${{ steps.get_tag.outputs.TAG_NAME }}-linux.zip swift-outdated-${{ steps.get_tag.outputs.TAG_NAME }}-linux
 
     - name: Test Binary
@@ -87,7 +87,7 @@ jobs:
       with:
         name: linux-binaries
         path: |
-          swift-outdated-${{ steps.get_tag.outputs.TAG_NAME }}-linux.tar.gz
+          # swift-outdated-${{ steps.get_tag.outputs.TAG_NAME }}-linux.tar.gz
           swift-outdated-${{ steps.get_tag.outputs.TAG_NAME }}-linux.zip
 
   release:
@@ -125,9 +125,9 @@ jobs:
         # Mark as prerelease if tag contains hyphen (e.g., 1.0.0-beta)
         prerelease: ${{ contains(steps.get_tag.outputs.TAG_NAME, '-') }}
         files: |
-          swift-outdated-${{ steps.get_tag.outputs.TAG_NAME }}-macos.tar.gz
+          # swift-outdated-${{ steps.get_tag.outputs.TAG_NAME }}-macos.tar.gz
           swift-outdated-${{ steps.get_tag.outputs.TAG_NAME }}-macos.zip
-          swift-outdated-${{ steps.get_tag.outputs.TAG_NAME }}-linux.tar.gz
+          # swift-outdated-${{ steps.get_tag.outputs.TAG_NAME }}-linux.tar.gz
           swift-outdated-${{ steps.get_tag.outputs.TAG_NAME }}-linux.zip
         generate_release_notes: true
       env:
