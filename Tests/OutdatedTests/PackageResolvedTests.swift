@@ -7,6 +7,10 @@ import Foundation
 @Suite("Package Resolved Tests")
 struct PackageResolvedTests {
     
+    init() {
+        initializeTestLogging()
+    }
+
     @Test("Package.resolved v2 parsing")
     func packageResolvedV2Parsing() throws {
         let tempFolder = try Folder.temporary.createSubfolder(named: "swift-outdated-tests-\(UUID().uuidString)")

@@ -5,6 +5,10 @@ import Version
 @Suite("Version Collection Tests")
 struct VersionCollectionTests {
     
+    init() {
+        initializeTestLogging()
+    }
+
     @Test("Available versions parsing")
     func availableVersionsParsing() {
         let mockProvider = MockGitRemoteProvider()

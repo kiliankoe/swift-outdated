@@ -6,6 +6,10 @@ import Foundation
 @Suite("Outdated Package Tests")
 struct OutdatedPackageTests {
 
+    init() {
+        initializeTestLogging()
+    }
+
     @Test("Normal package display")
     func normalPackageDisplay() {
         let package = OutdatedPackage(
