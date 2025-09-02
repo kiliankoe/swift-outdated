@@ -25,6 +25,9 @@ public struct SwiftOutdated: AsyncParsableCommand, Sendable {
 
     @Argument(help: "The directory containing the Package.resolved file", completion: .directory)
     var path: String = ""
+    
+    @Flag(name: [ .customShort("u"), .long], help: "Include up to date packages")
+    var includeUpToDate: Bool = false
 
     public static let configuration = CommandConfiguration(
         commandName: "swift-outdated",
@@ -46,7 +49,7 @@ public struct SwiftOutdated: AsyncParsableCommand, Sendable {
         setupLogging()
         let pins = try SwiftPackage.currentPackagePins(in: Folder(path: path))
         let packages = await SwiftPackage.collectVersions(for: pins, ignoringPrerelease: ignorePrerelease, onlyMajorUpdates: onlyMajor)
-        packages.output(format: isRunningInXcode ? .xcode : format.libFormat)
+        packages.output(format: isRunningInXcode ? .xcode : format.libFormat, includeUpToDatePackages: includeUpToDate)
     }
 
     private var isRunningInXcode: Bool {
