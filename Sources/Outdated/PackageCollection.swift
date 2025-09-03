@@ -28,7 +28,7 @@ extension PackageCollection {
             let json = try! encoder.encode(self)
             print(String(data: json, encoding: .utf8)!)
         case .markdown:
-            if includeUpToDatePackages {
+            if includeUpToDatePackages, !self.outdatedPackages.isEmpty {
                 print("## Outdated packages")
             }
             let rendered = render(self.outdatedPackages)
@@ -39,9 +39,11 @@ extension PackageCollection {
                 let renderedValidPackages = render(self.upToDatePackages)
                 print(renderedValidPackages)
                 
-                print("## Ignored packages")
-                let renderedIgnoredPackages = render(self.ignoredPackages)
-                print(renderedIgnoredPackages)
+                if !self.ignoredPackages.isEmpty {
+                    print("## Ignored packages")
+                    let renderedIgnoredPackages = render(self.ignoredPackages)
+                    print(renderedIgnoredPackages)
+                }
             } else {
                 if !self.ignoredPackages.isEmpty {
                     let ignoredString = self.ignoredPackages.map { $0.package }.joined(separator: ", ")
