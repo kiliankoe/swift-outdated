@@ -40,6 +40,12 @@ $ swift outdated
 
 This lists all your outdated dependencies, the currently resolved version and the latest version available in their upstream repository.
 
+### Listing all dependencies
+
+`swift-outdated` also allows listing all your dependencies alongside the ones that are not up to date.
+
+Run the application using `-u` or `--include-up-to-date` command line switch and it will print out current dependencies with their version and ignored ones with their revisions.
+
 ### Library
 
 This packages also exposes a library target called `Outdated`. Use this if you want to integrate the functionality into your project.

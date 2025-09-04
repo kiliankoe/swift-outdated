@@ -30,6 +30,12 @@ extension SwiftPackage: Encodable {
     }
 }
 
+extension SwiftPackage: Comparable {
+    public static func < (lhs: SwiftPackage, rhs: SwiftPackage) -> Bool {
+        return lhs.package < rhs.package
+    }
+}
+
 extension SwiftPackage: Hashable {
     public func hash(into hasher: inout Hasher) {
         hasher.combine(package)
@@ -171,25 +177,48 @@ extension SwiftPackage {
             return availableVersions
         }
 
-        let outdatedPackages = versions
-            .compactMap { package, allVersions -> OutdatedPackage? in
-                if let current = package.version, 
-                   let latest = getLatestVersion(from: allVersions, currentVersion: current, ignoringPrerelease: ignoringPrerelease, onlyMajorUpdates: onlyMajorUpdates),
-                   current != latest
-                {
-                    log.info("Package \(package.package) is outdated.")
-                    return OutdatedPackage(package: package.package, currentVersion: current, latestVersion: latest, url: package.repositoryURL)
-                } else {
-                    log.info("Package \(package.package) is up to date.")
-                }
-                return nil
+        var upToDatePackages: [SwiftPackage] = []
+        var outdatedPackages: [OutdatedPackage] = []
+
+        for (package, allVersions) in versions {
+            guard let current = package.version else {
+                continue
             }
-            .sorted(by: { $0.package < $1.package })
+
+            if let latest = getLatestVersion(from: allVersions, currentVersion: current, ignoringPrerelease: ignoringPrerelease, onlyMajorUpdates: onlyMajorUpdates),
+               current != latest {
+                log.info("Package \(package.package) is outdated.")
+                outdatedPackages.append(
+                    OutdatedPackage(
+                        package: package.package,
+                        currentVersion: current,
+                        latestVersion: latest,
+                        url: package.repositoryURL
+                    )
+                )
+            } else {
+                log.info("Package \(package.package) is up to date.")
+                upToDatePackages.append(
+                    SwiftPackage(
+                        package: package.package,
+                        repositoryURL: package.repositoryURL,
+                        revision: package.revision,
+                        version: package.version
+                    )
+                )
+            }
+        }
+
         let ignoredPackages = packages.filter { !$0.hasResolvedVersion }
         if !ignoredPackages.isEmpty {
             log.info("Ignoring \(ignoredPackages.map { $0.package }.joined(separator: ", ")) because of non-version pins.")
         }
-        return PackageCollection(outdatedPackages: outdatedPackages, ignoredPackages: ignoredPackages)
+
+        return PackageCollection(
+            outdatedPackages: outdatedPackages.sorted(),
+            ignoredPackages: ignoredPackages.sorted(),
+            upToDatePackages: upToDatePackages.sorted()
+        )
     }
 
     private static func getLatestVersion(from allVersions: [Version], currentVersion: Version, ignoringPrerelease: Bool, onlyMajorUpdates: Bool) -> Version? {
@@ -220,5 +249,22 @@ extension SwiftPackage {
                 return "No Package.resolved read in current working tree."
             }
         }
+    }
+}
+
+import SwiftyTextTable
+extension SwiftPackage: TextTableRepresentable {
+    public static let columnHeaders = [
+        "Package",
+        "Current",
+        "URL"
+    ]
+
+    public var tableValues: [CustomStringConvertible] {
+        return [
+            self.package,
+            self.version ?? self.revision ?? "N/A",
+            self.repositoryURL.blue
+        ]
     }
 }

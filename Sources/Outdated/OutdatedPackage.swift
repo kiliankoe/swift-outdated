@@ -19,6 +19,12 @@ public struct OutdatedPackage {
 
 extension OutdatedPackage: Encodable {}
 
+extension OutdatedPackage: Comparable {
+    public static func < (lhs: OutdatedPackage, rhs: OutdatedPackage) -> Bool {
+        return lhs.package < rhs.package
+    }
+}
+
 extension OutdatedPackage: TextTableRepresentable {
     public static let columnHeaders = [
         "Package",
