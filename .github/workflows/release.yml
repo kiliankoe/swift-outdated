@@ -21,6 +21,15 @@ jobs:
       id: get_tag
       run: echo "TAG_NAME=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
 
+    - name: Update version in source
+      run: |
+        VERSION="${{ steps.get_tag.outputs.TAG_NAME }}"
+        echo "Updating version from dev to ${VERSION}"
+        # Replace the dev placeholder with the actual version
+        sed -i '' 's/version: "dev"/version: "'"${VERSION}"'"/' Sources/SwiftOutdated/SwiftOutdated.swift
+        # Verify the replacement worked
+        grep -q "version: \"${VERSION}\"" Sources/SwiftOutdated/SwiftOutdated.swift || exit 1
+        
     - name: Build Release Binary
       run: |
         swift build -c release --disable-sandbox
@@ -63,6 +72,15 @@ jobs:
       id: get_tag
       run: echo "TAG_NAME=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
 
+    - name: Update version in source
+      run: |
+        VERSION="${{ steps.get_tag.outputs.TAG_NAME }}"
+        echo "Updating version from dev to ${VERSION}"
+        # Replace the dev placeholder with the actual version
+        sed -i 's/version: "dev"/version: "'"${VERSION}"'"/' Sources/SwiftOutdated/SwiftOutdated.swift
+        # Verify the replacement worked
+        grep -q "version: \"${VERSION}\"" Sources/SwiftOutdated/SwiftOutdated.swift || exit 1
+        
     - name: Build Release Binary
       run: |
         swift build -c release --disable-sandbox
