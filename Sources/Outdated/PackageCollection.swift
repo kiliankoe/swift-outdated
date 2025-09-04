@@ -28,22 +28,11 @@ extension PackageCollection {
             let json = try! encoder.encode(self)
             print(String(data: json, encoding: .utf8)!)
         case .markdown:
-            if includeUpToDatePackages, !self.outdatedPackages.isEmpty {
-                print("## Outdated packages")
-            }
-            let rendered = render(self.outdatedPackages)
-            print(rendered)
+            render(includeUpToDatePackages ? "## Outdated packages": nil, self.outdatedPackages)
             
             if includeUpToDatePackages {
-                print("## Up to date packages")
-                let renderedValidPackages = render(self.upToDatePackages)
-                print(renderedValidPackages)
-                
-                if !self.ignoredPackages.isEmpty {
-                    print("## Ignored packages")
-                    let renderedIgnoredPackages = render(self.ignoredPackages)
-                    print(renderedIgnoredPackages)
-                }
+                render("## Up to date packages", self.upToDatePackages)
+                render("## Ignored packages", self.ignoredPackages)
             } else {
                 if !self.ignoredPackages.isEmpty {
                     let ignoredString = self.ignoredPackages.map { $0.package }.joined(separator: ", ")
@@ -53,17 +42,24 @@ extension PackageCollection {
         }
     }
     
-    private func render<T: TextTableRepresentable>(_ objects: [T]) -> String {
+    private func render<T: TextTableRepresentable>(_ title: String?, _ objects: [T]) {
+        guard !objects.isEmpty else { return }
+        
         var table = TextTable(objects: objects)
 
         // table in Markdown style.
         table.cornerFence = "|"
         let rendered = table.render()
         // Remove unnecessary separators for Markdown table (first and last fences).
-        return rendered
+        let tableOutput = rendered
             .components(separatedBy: "\n")
             .dropFirst()
             .dropLast(1)
             .joined(separator: "\n")
+        
+        if let title {
+            print(title)
+        }
+        print(tableOutput)
     }
 }
