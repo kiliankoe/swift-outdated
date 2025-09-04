@@ -30,6 +30,12 @@ extension SwiftPackage: Encodable {
     }
 }
 
+extension SwiftPackage: Comparable {
+    public static func < (lhs: SwiftPackage, rhs: SwiftPackage) -> Bool {
+        return lhs.package < rhs.package
+    }
+}
+
 extension SwiftPackage: Hashable {
     public func hash(into hasher: inout Hasher) {
         hasher.combine(package)
@@ -209,9 +215,9 @@ extension SwiftPackage {
         }
 
         return PackageCollection(
-            outdatedPackages: outdatedPackages.sorted(by: { $0.package < $1.package }),
-            ignoredPackages: ignoredPackages,
-            upToDatePackages: upToDatePackages.sorted(by: { $0.package < $1.package })
+            outdatedPackages: outdatedPackages.sorted(),
+            ignoredPackages: ignoredPackages.sorted(),
+            upToDatePackages: upToDatePackages.sorted()
         )
     }
 
