@@ -90,7 +90,8 @@ extension SwiftPackage {
                 "Package.resolved",
                 ".package.resolved",
                 "xcshareddata/swiftpm/Package.resolved",
-                "project.xcworkspace/xcshareddata/swiftpm/Package.resolved"
+                "project.xcworkspace/xcshareddata/swiftpm/Package.resolved",
+                "Tuist/Package.resolved"
             ]
             if let resolvedPath = possibleRootResolvedPaths.lazy.compactMap({ try? folder.file(at: $0) }).first {
                 log.info("Found package pins at \(resolvedPath.path(relativeTo: folder))")
