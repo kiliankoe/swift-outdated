@@ -156,9 +156,10 @@ extension SwiftPackage {
 }
 
 extension SwiftPackage {
-    public static func collectVersions(for packages: [SwiftPackage], ignoringPrerelease: Bool, onlyMajorUpdates: Bool) async -> PackageCollection {
-        log.info("Collecting versions for \(packages.map { $0.package }.joined(separator: ", ")).")
-        let versions = await withTaskGroup(of: (SwiftPackage, [Version]?).self) { group in
+    private static func fetchAvailableVersions(
+        for packages: [SwiftPackage]
+    ) async -> [(SwiftPackage, [Version])] {
+        await withTaskGroup(of: (SwiftPackage, [Version]).self) { group in
             for package in packages where package.hasResolvedVersion {
                 log.info("Package \(package.package) has resolved version, queueing version fetch.")
                 group.addTask {
@@ -168,15 +169,17 @@ extension SwiftPackage {
                 }
             }
 
-            var availableVersions = [SwiftPackage: [Version]]()
-            for await (package, versions) in group {
-                if let versions = versions {
-                    availableVersions[package] = versions
-                }
+            var result = [(SwiftPackage, [Version])]()
+            for await pair in group {
+                result.append(pair)
             }
-
-            return availableVersions
+            return result
         }
+    }
+
+    public static func collectVersions(for packages: [SwiftPackage], ignoringPrerelease: Bool, onlyMajorUpdates: Bool) async -> PackageCollection {
+        log.info("Collecting versions for \(packages.map { $0.package }.joined(separator: ", ")).")
+        let versions = await fetchAvailableVersions(for: packages)
 
         var upToDatePackages: [SwiftPackage] = []
         var outdatedPackages: [OutdatedPackage] = []
@@ -222,6 +225,27 @@ extension SwiftPackage {
         )
     }
 
+    /// Collect versions for update mode, returning tuples suitable for PackageUpdater.
+    public static func collectVersionsForUpdate(
+        for packages: [SwiftPackage],
+        ignoringPrerelease: Bool,
+        scope: UpdateScope,
+        filterPackages: [String] = []
+    ) async -> [(package: String, url: String, current: Version, target: Version)] {
+        let filtered = filterPackages.isEmpty ? packages : packages.filter { filterPackages.contains($0.package) }
+        let versions = await fetchAvailableVersions(for: filtered)
+
+        var updates = [(package: String, url: String, current: Version, target: Version)]()
+        for (package, availableVersions) in versions {
+            guard let current = package.version else { continue }
+            if let target = scope.targetVersion(current: current, available: availableVersions, ignoringPrerelease: ignoringPrerelease) {
+                updates.append((package: package.package, url: package.repositoryURL, current: current, target: target))
+            }
+        }
+
+        return updates.sorted { $0.package < $1.package }
+    }
+
     private static func getLatestVersion(from allVersions: [Version], currentVersion: Version, ignoringPrerelease: Bool, onlyMajorUpdates: Bool) -> Version? {
         var validVersions: [Version] = allVersions
 
@@ -241,13 +265,16 @@ extension SwiftPackage {
     public enum Error: Swift.Error, LocalizedError {
         case notFound
         case notReadable
-        
+        case manifestNotFound
+
         public var errorDescription: String? {
             switch self {
             case .notFound:
                 return "No Package.resolved found in current working tree."
             case .notReadable:
                 return "No Package.resolved read in current working tree."
+            case .manifestNotFound:
+                return "No Package.swift or .xcodeproj found in current working tree."
             }
         }
     }
