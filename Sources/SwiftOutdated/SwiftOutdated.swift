@@ -89,20 +89,26 @@ public struct SwiftOutdated: AsyncParsableCommand, Sendable {
             return
         }
 
-        let results = try PackageUpdater.update(
-            in: folder,
-            packages: updates,
-            dryRun: dryRun
-        )
+        do {
+            let results = try PackageUpdater.update(
+                in: folder,
+                packages: updates,
+                dryRun: dryRun
+            )
 
-        PackageUpdater.printResults(results)
+            PackageUpdater.printResults(results)
 
-        let updatedCount = results.filter { $0.status == .updated || $0.status == .wouldUpdate }.count
-        print("")
-        if dryRun {
-            print("\(updatedCount) package(s) would be updated.")
-        } else {
-            print("\(updatedCount) package(s) updated.")
+            let updatedCount = results.filter { $0.status == .updated || $0.status == .wouldUpdate }.count
+            print("")
+            if dryRun {
+                print("\(updatedCount) package(s) would be updated.")
+            } else {
+                print("\(updatedCount) package(s) updated.")
+            }
+        } catch {
+            print("Dependency resolution failed. Changes have been rolled back.")
+            print("Hint: use --package to skip the conflicting package.")
+            throw error
         }
     }
 

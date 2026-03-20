@@ -104,15 +104,22 @@ public struct PackageUpdater: Sendable {
 
         let hasEdits = results.contains { $0.status == .updated }
         if !dryRun && hasEdits {
+            let originalManifest = try String(contentsOfFile: manifestPath, encoding: .utf8)
             try manifest.write(toFile: manifestPath, atomically: true, encoding: .utf8)
 
-            switch projectType {
-            case .spm:
-                log.info("Running swift package update...")
-                try shellOut(to: "swift", arguments: ["package", "update"], at: folder.path)
-            case .xcode:
-                log.info("Running xcodebuild -resolvePackageDependencies...")
-                try shellOut(to: "xcodebuild", arguments: ["-resolvePackageDependencies"], at: folder.path)
+            do {
+                switch projectType {
+                case .spm:
+                    log.info("Running swift package update...")
+                    try shellOut(to: "swift", arguments: ["package", "update"], at: folder.path)
+                case .xcode:
+                    log.info("Running xcodebuild -resolvePackageDependencies...")
+                    try shellOut(to: "xcodebuild", arguments: ["-resolvePackageDependencies"], at: folder.path)
+                }
+            } catch {
+                log.info("Dependency resolution failed, restoring original manifest...")
+                try originalManifest.write(toFile: manifestPath, atomically: true, encoding: .utf8)
+                throw error
             }
         }
 
