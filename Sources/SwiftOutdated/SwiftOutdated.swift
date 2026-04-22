@@ -4,6 +4,7 @@ import Files
 import Foundation
 import Logging
 import Outdated
+import Version
 
 let log = Logger(label: "SwiftOutdated")
 
@@ -25,9 +26,18 @@ public struct SwiftOutdated: AsyncParsableCommand, Sendable {
 
     @Argument(help: "The directory containing the Package.resolved file", completion: .directory)
     var path: String = ""
-    
+
     @Flag(name: [ .customShort("u"), .long], help: "Include up to date packages")
     var includeUpToDate: Bool = false
+
+    @Option(name: .long, help: "Update outdated packages (patch, minor, major).")
+    var update: CLIUpdateScope?
+
+    @Option(name: .long, parsing: .singleValue, help: "Only update specific packages (repeatable).")
+    var package: [String] = []
+
+    @Flag(name: .long, help: "Show what would be updated without making changes.")
+    var dryRun: Bool = false
 
     public static let configuration = CommandConfiguration(
         commandName: "swift-outdated",
@@ -41,15 +51,65 @@ public struct SwiftOutdated: AsyncParsableCommand, Sendable {
 
         swift-outdated automatically detects if it is run via an Xcode run script phase and will emit warnings for
         Xcode's issue navigator.
+
+        Use --update to automatically update outdated packages:
+          swift-outdated --update patch    Update to latest patch versions
+          swift-outdated --update minor    Update to latest minor versions
+          swift-outdated --update major    Update to absolute latest versions
         """,
         version: "dev"
     )
 
     public func run() async throws {
         setupLogging()
-        let pins = try SwiftPackage.currentPackagePins(in: Folder(path: path))
-        let packages = await SwiftPackage.collectVersions(for: pins, ignoringPrerelease: ignorePrerelease, onlyMajorUpdates: onlyMajor)
-        packages.output(format: isRunningInXcode ? .xcode : format.libFormat, includeUpToDatePackages: includeUpToDate)
+        let folder = try Folder(path: path)
+        let pins = try SwiftPackage.currentPackagePins(in: folder)
+
+        if let update = update {
+            try await runUpdate(scope: update.libScope, folder: folder, pins: pins)
+        } else {
+            let packages = await SwiftPackage.collectVersions(for: pins, ignoringPrerelease: ignorePrerelease, onlyMajorUpdates: onlyMajor)
+            packages.output(format: isRunningInXcode ? .xcode : format.libFormat, includeUpToDatePackages: includeUpToDate)
+        }
+    }
+
+    private func runUpdate(scope: UpdateScope, folder: Folder, pins: [SwiftPackage]) async throws {
+        print("Updating packages (scope: \(scope.rawValue))...\(dryRun ? " (dry run)" : "")")
+        print("")
+
+        let updates = await SwiftPackage.collectVersionsForUpdate(
+            for: pins,
+            ignoringPrerelease: ignorePrerelease,
+            scope: scope,
+            filterPackages: package
+        )
+
+        guard !updates.isEmpty else {
+            print("All packages are up to date.")
+            return
+        }
+
+        do {
+            let results = try PackageUpdater.update(
+                in: folder,
+                packages: updates,
+                dryRun: dryRun
+            )
+
+            PackageUpdater.printResults(results)
+
+            let updatedCount = results.filter { $0.status == .updated || $0.status == .wouldUpdate }.count
+            print("")
+            if dryRun {
+                print("\(updatedCount) package(s) would be updated.")
+            } else {
+                print("\(updatedCount) package(s) updated.")
+            }
+        } catch {
+            print("Dependency resolution failed. Changes have been rolled back.")
+            print("Hint: use --package to skip the conflicting package.")
+            throw error
+        }
     }
 
     private var isRunningInXcode: Bool {
@@ -80,5 +140,15 @@ enum CLIOutputFormat: String, ExpressibleByArgument {
 
     var libFormat: PackageCollection.OutputFormat {
         .init(rawValue: self.rawValue)! // lol
+    }
+}
+
+enum CLIUpdateScope: String, ExpressibleByArgument, CaseIterable {
+    case patch
+    case minor
+    case major
+
+    var libScope: UpdateScope {
+        .init(rawValue: self.rawValue)!
     }
 }
