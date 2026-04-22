@@ -10,6 +10,7 @@ public struct PackageUpdater: Sendable {
     public enum ProjectType: Sendable {
         case spm(packageSwiftPath: String)
         case xcode(pbxprojPath: String)
+        case tuist(packageSwiftPath: String)
     }
 
     public struct UpdateResult: Sendable {
@@ -31,6 +32,11 @@ public struct PackageUpdater: Sendable {
         if folder.containsFile(named: "Package.swift") {
             let path = folder.url.appendingPathComponent("Package.swift").path
             return .spm(packageSwiftPath: path)
+        }
+
+        let tuistPackageSwift = folder.url.appendingPathComponent("Tuist/Package.swift").path
+        if FileManager.default.fileExists(atPath: tuistPackageSwift) {
+            return .tuist(packageSwiftPath: tuistPackageSwift)
         }
 
         let xcodeProjects = folder.subfolders.filter { $0.name.hasSuffix(".xcodeproj") }
@@ -82,7 +88,7 @@ public struct PackageUpdater: Sendable {
 
         let manifestPath: String
         switch projectType {
-        case .spm(let path):
+        case .spm(let path), .tuist(let path):
             manifestPath = path
         case .xcode(let path):
             manifestPath = path
@@ -104,7 +110,7 @@ public struct PackageUpdater: Sendable {
         for pkg in packages {
             let edited: String?
             switch projectType {
-            case .spm:
+            case .spm, .tuist:
                 edited = ManifestEditor.updatePackageSwift(
                     manifest: manifest,
                     repositoryURL: pkg.url,
@@ -175,6 +181,9 @@ public struct PackageUpdater: Sendable {
                 case .xcode:
                     log.info("Running xcodebuild -resolvePackageDependencies...")
                     try shellOut(to: "xcodebuild", arguments: ["-resolvePackageDependencies"], at: folder.path)
+                case .tuist:
+                    log.info("Running tuist install...")
+                    try shellOut(to: "tuist", arguments: ["install"], at: folder.path)
                 }
             } catch {
                 log.info("Dependency resolution failed, restoring all manifests...")
