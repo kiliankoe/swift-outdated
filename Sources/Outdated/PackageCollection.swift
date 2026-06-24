@@ -1,10 +1,16 @@
 import Foundation
+import Rainbow
 import SwiftyTextTable
 
 public struct PackageCollection: Encodable {
     public var outdatedPackages: [OutdatedPackage]
     public var ignoredPackages: [SwiftPackage]
     public var upToDatePackages: [SwiftPackage]
+    public var securityResults: [String: SecurityPair]?
+
+    enum CodingKeys: String, CodingKey {
+        case outdatedPackages, ignoredPackages, upToDatePackages
+    }
 }
 
 extension PackageCollection {
@@ -28,7 +34,12 @@ extension PackageCollection {
             let json = try! encoder.encode(self)
             print(String(data: json, encoding: .utf8)!)
         case .markdown:
-            render(includeUpToDatePackages ? "## Outdated packages": nil, self.outdatedPackages)
+            if let securityResults = securityResults {
+                let enriched = outdatedPackages.map { OutdatedPackageWithSecurity(base: $0, security: securityResults[$0.package]) }
+                render(includeUpToDatePackages ? "## Outdated packages" : nil, enriched)
+            } else {
+                render(includeUpToDatePackages ? "## Outdated packages": nil, self.outdatedPackages)
+            }
             
             if includeUpToDatePackages {
                 render("## Up to date packages", self.upToDatePackages)
@@ -42,6 +53,48 @@ extension PackageCollection {
         }
     }
     
+    private struct OutdatedPackageWithSecurity: TextTableRepresentable {
+        let base: OutdatedPackage
+        let security: SecurityPair?
+
+        static let columnHeaders = ["Package", "Current", "Sec. Current", "Latest", "Sec. Latest", "URL"]
+
+        var tableValues: [CustomStringConvertible] {
+            let majorDiff = base.latestVersion.major - base.currentVersion.major
+            var latestStr = base.latestVersion.description
+            switch majorDiff {
+            case 1: latestStr = latestStr.green
+            case 2: latestStr = latestStr.yellow
+            case 3...: latestStr = latestStr.red
+            default: break
+            }
+            return [
+                base.package,
+                base.currentVersion.description,
+                securityLabel(for: security?.current),
+                latestStr,
+                securityLabel(for: security?.latest),
+                base.url.blue
+            ]
+        }
+
+        private func securityLabel(for info: SecurityInfo?) -> String {
+            guard let info = info else { return "?".dim }
+            switch info.osvStatus {
+            case .vulnerable(let count, _):
+                return "⚠ \(count) CVE\(count > 1 ? "s" : "")".red
+            case .safe:
+                if let score = info.scorecardScore {
+                    let scoreStr = String(format: "%.1f/10", score)
+                    return score < 5.0 ? "Score: \(scoreStr)".yellow : "✓ \(scoreStr)".green
+                }
+                return "✓ Safe".green
+            case .unknown:
+                return "?".dim
+            }
+        }
+    }
+
     private func render<T: TextTableRepresentable>(_ title: String?, _ objects: [T]) {
         guard !objects.isEmpty else { return }
         
