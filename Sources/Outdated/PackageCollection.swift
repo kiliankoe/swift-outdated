@@ -60,19 +60,11 @@ extension PackageCollection {
         static let columnHeaders = ["Package", "Current", "Sec. Current", "Latest", "Sec. Latest", "Score", "URL"]
 
         var tableValues: [CustomStringConvertible] {
-            let majorDiff = base.latestVersion.major - base.currentVersion.major
-            var latestStr = base.latestVersion.description
-            switch majorDiff {
-            case 1: latestStr = latestStr.green
-            case 2: latestStr = latestStr.yellow
-            case 3...: latestStr = latestStr.red
-            default: break
-            }
             return [
                 base.package,
                 base.currentVersion.description,
                 osvLabel(for: security?.currentOSV),
-                latestStr,
+                base.coloredLatestVersion,
                 osvLabel(for: security?.latestOSV),
                 scoreLabel(for: security?.scorecardScore),
                 base.url.blue

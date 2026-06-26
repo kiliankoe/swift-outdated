@@ -34,23 +34,22 @@ extension OutdatedPackage: TextTableRepresentable {
     ]
 
     public var tableValues: [CustomStringConvertible] {
-        let majorDiff = latestVersion.major - currentVersion.major
-        var latestVersion = self.latestVersion.description
-        switch majorDiff {
-        case 1:
-            latestVersion = latestVersion.green
-        case 2:
-            latestVersion = latestVersion.yellow
-        case 3...:
-            latestVersion = latestVersion.red
-        default:
-            break
-        }
         return [
             self.package,
             self.currentVersion.description,
-            latestVersion,
+            self.coloredLatestVersion,
             self.url.blue
         ]
+    }
+
+    /// The latest version string, colored by how many major versions behind the current version is.
+    var coloredLatestVersion: String {
+        let latest = self.latestVersion.description
+        switch latestVersion.major - currentVersion.major {
+        case 1: return latest.green
+        case 2: return latest.yellow
+        case 3...: return latest.red
+        default: return latest
+        }
     }
 }
