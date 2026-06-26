@@ -1,0 +1,141 @@
+import Foundation
+#if canImport(FoundationNetworking)
+import FoundationNetworking
+#endif
+
+public enum OSVStatus: Sendable, Encodable {
+    case safe
+    case vulnerable(count: Int, ids: [String])
+    case unknown
+
+    enum CodingKeys: String, CodingKey {
+        case status, cveCount, cveIds
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        switch self {
+        case .safe:
+            try container.encode("safe", forKey: .status)
+        case .vulnerable(let count, let ids):
+            try container.encode("vulnerable", forKey: .status)
+            try container.encode(count, forKey: .cveCount)
+            try container.encode(ids, forKey: .cveIds)
+        case .unknown:
+            try container.encode("unknown", forKey: .status)
+        }
+    }
+}
+
+public struct SecurityPair: Sendable, Encodable {
+    // CVE status is version-specific, so it's tracked separately for each version.
+    public let currentOSV: OSVStatus
+    public let latestOSV: OSVStatus
+    // The Scorecard score describes the repository, not a version, so it's a single value.
+    public let scorecardScore: Double?
+}
+
+public enum SecurityChecker {
+    /// Per-request network timeout. Keeps the command from hanging indefinitely on a slow/unreachable API.
+    private static let requestTimeout: TimeInterval = 10
+
+    public static func check(
+        packages: [(name: String, url: String, currentVersion: String, latestVersion: String)]
+    ) async -> [String: SecurityPair] {
+        FileHandle.standardError.write(Data("Checking security advisories for \(packages.count) package(s)…\n".utf8))
+        return await withTaskGroup(of: (String, SecurityPair).self) { group in
+            for pkg in packages {
+                group.addTask {
+                    let pair = await checkPackage(url: pkg.url, currentVersion: pkg.currentVersion, latestVersion: pkg.latestVersion)
+                    return (pkg.name, pair)
+                }
+            }
+            var results = [String: SecurityPair]()
+            for await (name, pair) in group {
+                results[name] = pair
+            }
+            return results
+        }
+    }
+
+    private static func checkPackage(url: String, currentVersion: String, latestVersion: String) async -> SecurityPair {
+        async let currentOSV = checkOSV(url: url, version: currentVersion)
+        async let latestOSV = checkOSV(url: url, version: latestVersion)
+        async let score = checkScorecard(url: url)
+        let (c, l, s) = await (currentOSV, latestOSV, score)
+        return SecurityPair(currentOSV: c, latestOSV: l, scorecardScore: s)
+    }
+
+    // MARK: - OSV
+
+    private static func checkOSV(url: String, version: String) async -> OSVStatus {
+        guard let packageName = osvPackageName(from: url) else { return .unknown }
+
+        let body: [String: Any] = [
+            "package": ["ecosystem": "SwiftURL", "name": packageName],
+            "version": version
+        ]
+        guard let data = try? JSONSerialization.data(withJSONObject: body),
+              let endpoint = URL(string: "https://api.osv.dev/v1/query") else { return .unknown }
+
+        var request = URLRequest(url: endpoint, timeoutInterval: requestTimeout)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.httpBody = data
+
+        guard let (responseData, _) = try? await URLSession.shared.data(for: request),
+              let json = try? JSONSerialization.jsonObject(with: responseData) as? [String: Any] else {
+            return .unknown
+        }
+
+        guard let vulns = json["vulns"] as? [[String: Any]], !vulns.isEmpty else {
+            return .safe
+        }
+
+        let ids = vulns.compactMap { $0["id"] as? String }
+        return .vulnerable(count: vulns.count, ids: ids)
+    }
+
+    // Normalise a repository URL to the "host/owner/repo" form OSV expects.
+    // e.g. "https://github.com/apple/swift-argument-parser.git" → "github.com/apple/swift-argument-parser"
+    static func osvPackageName(from url: String) -> String? {
+        var s = url
+        if s.hasSuffix(".git") { s = String(s.dropLast(4)) }
+        guard let parsed = URL(string: s),
+              let host = parsed.host else { return nil }
+        let path = parsed.path.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+        guard !path.isEmpty else { return nil }
+        return "\(host)/\(path)"
+    }
+
+    // MARK: - OpenSSF Scorecard
+
+    private static func checkScorecard(url: String) async -> Double? {
+        guard let project = scorecardProject(from: url),
+              let endpoint = URL(string: "https://api.securityscorecards.dev/projects/\(project)") else {
+            return nil
+        }
+
+        let request = URLRequest(url: endpoint, timeoutInterval: requestTimeout)
+        guard let (data, _) = try? await URLSession.shared.data(for: request),
+              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let score = json["score"] as? Double else {
+            return nil
+        }
+
+        return score
+    }
+
+    // Extracts "github.com/owner/repo" for Scorecard (only GitHub repos are supported).
+    static func scorecardProject(from url: String) -> String? {
+        var s = url
+        if s.hasSuffix(".git") { s = String(s.dropLast(4)) }
+        guard let parsed = URL(string: s),
+              let host = parsed.host,
+              host.lowercased() == "github.com" else { return nil }
+        let path = parsed.path.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+        let components = path.split(separator: "/")
+        guard components.count >= 2 else { return nil }
+        return "github.com/\(components[0])/\(components[1])"
+    }
+}

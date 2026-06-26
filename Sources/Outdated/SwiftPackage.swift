@@ -177,7 +177,7 @@ extension SwiftPackage {
         }
     }
 
-    public static func collectVersions(for packages: [SwiftPackage], ignoringPrerelease: Bool, onlyMajorUpdates: Bool) async -> PackageCollection {
+    public static func collectVersions(for packages: [SwiftPackage], ignoringPrerelease: Bool, onlyMajorUpdates: Bool, checkSecurity: Bool = false) async -> PackageCollection {
         log.info("Collecting versions for \(packages.map { $0.package }.joined(separator: ", ")).")
         let versions = await fetchAvailableVersions(for: packages)
 
@@ -218,10 +218,17 @@ extension SwiftPackage {
             log.info("Ignoring \(ignoredPackages.map { $0.package }.joined(separator: ", ")) because of non-version pins.")
         }
 
+        var securityResults: [String: SecurityPair]?
+        if checkSecurity && !outdatedPackages.isEmpty {
+            let toCheck = outdatedPackages.map { (name: $0.package, url: $0.url, currentVersion: $0.currentVersion.description, latestVersion: $0.latestVersion.description) }
+            securityResults = await SecurityChecker.check(packages: toCheck)
+        }
+
         return PackageCollection(
             outdatedPackages: outdatedPackages.sorted(),
             ignoredPackages: ignoredPackages.sorted(),
-            upToDatePackages: upToDatePackages.sorted()
+            upToDatePackages: upToDatePackages.sorted(),
+            securityResults: securityResults
         )
     }
 

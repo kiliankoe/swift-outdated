@@ -1,10 +1,16 @@
 import Foundation
+import Rainbow
 import SwiftyTextTable
 
 public struct PackageCollection: Encodable {
     public var outdatedPackages: [OutdatedPackage]
     public var ignoredPackages: [SwiftPackage]
     public var upToDatePackages: [SwiftPackage]
+    public var securityResults: [String: SecurityPair]?
+
+    enum CodingKeys: String, CodingKey {
+        case outdatedPackages, ignoredPackages, upToDatePackages, securityResults
+    }
 }
 
 extension PackageCollection {
@@ -20,7 +26,11 @@ extension PackageCollection {
         switch format {
         case .xcode:
             self.outdatedPackages.forEach {
-                print("warning: Dependency \"\($0.package)\" is outdated (\($0.currentVersion) < \($0.latestVersion)) → \($0.url)")
+                var warning = "warning: Dependency \"\($0.package)\" is outdated (\($0.currentVersion) < \($0.latestVersion)) → \($0.url)"
+                if case .vulnerable(let count, _)? = securityResults?[$0.package]?.currentOSV {
+                    warning += " — \(count) known CVE\(count > 1 ? "s" : "")"
+                }
+                print(warning)
             }
         case .json:
             let encoder = JSONEncoder()
@@ -28,7 +38,12 @@ extension PackageCollection {
             let json = try! encoder.encode(self)
             print(String(data: json, encoding: .utf8)!)
         case .markdown:
-            render(includeUpToDatePackages ? "## Outdated packages": nil, self.outdatedPackages)
+            if let securityResults = securityResults {
+                let enriched = outdatedPackages.map { OutdatedPackageWithSecurity(base: $0, security: securityResults[$0.package]) }
+                render(includeUpToDatePackages ? "## Outdated packages" : nil, enriched)
+            } else {
+                render(includeUpToDatePackages ? "## Outdated packages": nil, self.outdatedPackages)
+            }
             
             if includeUpToDatePackages {
                 render("## Up to date packages", self.upToDatePackages)
@@ -42,6 +57,46 @@ extension PackageCollection {
         }
     }
     
+    private struct OutdatedPackageWithSecurity: TextTableRepresentable {
+        let base: OutdatedPackage
+        let security: SecurityPair?
+
+        static let columnHeaders = ["Package", "Current", "Sec. Current", "Latest", "Sec. Latest", "Score", "URL"]
+
+        var tableValues: [CustomStringConvertible] {
+            return [
+                base.package,
+                base.currentVersion.description,
+                SecurityLabel.osv(security?.currentOSV),
+                base.coloredLatestVersion,
+                SecurityLabel.osv(security?.latestOSV),
+                SecurityLabel.score(security?.scorecardScore),
+                base.url.blue
+            ]
+        }
+    }
+
+    /// Renders the security columns. CVE status (OSV) is version-specific; the Scorecard score rates the repository.
+    enum SecurityLabel {
+        static func osv(_ status: OSVStatus?) -> String {
+            switch status {
+            case .vulnerable(let count, _):
+                return "⚠ \(count) CVE\(count > 1 ? "s" : "")".red
+            case .safe:
+                return "✓ No CVEs".green
+            case .unknown, .none:
+                // Couldn't determine CVE status (no advisory data or the query failed) — not the same as "safe".
+                return "?".dim
+            }
+        }
+
+        static func score(_ score: Double?) -> String {
+            guard let score = score else { return "?".dim }
+            let scoreStr = String(format: "%.1f/10", score)
+            return score < 5.0 ? "⚠ \(scoreStr)".yellow : "✓ \(scoreStr)".green
+        }
+    }
+
     private func render<T: TextTableRepresentable>(_ title: String?, _ objects: [T]) {
         guard !objects.isEmpty else { return }
         

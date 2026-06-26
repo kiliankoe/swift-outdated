@@ -18,7 +18,11 @@ jobs:
     - name: Checkout
       uses: actions/checkout@v4
 
-    - name: Setup Swift
+    # On macOS the runner's Xcode toolchain matches its SDK; installing a separate
+    # Swift here pins an older compiler that can't read the newer SDK. Only Linux
+    # needs a toolchain installed.
+    - name: Setup Swift (Linux)
+      if: runner.os == 'Linux'
       uses: swift-actions/setup-swift@v2
 
     - name: Cache Swift Package Manager

@@ -39,6 +39,9 @@ public struct SwiftOutdated: AsyncParsableCommand, Sendable {
     @Flag(name: .long, help: "Show what would be updated without making changes.")
     var dryRun: Bool = false
 
+    @Flag(name: .long, help: "Check packages against OSV and OpenSSF Scorecard for known vulnerabilities.")
+    var checkSecurity: Bool = false
+
     public static let configuration = CommandConfiguration(
         commandName: "swift-outdated",
         abstract: "Check for outdated dependencies.",
@@ -68,7 +71,7 @@ public struct SwiftOutdated: AsyncParsableCommand, Sendable {
         if let update = update {
             try await runUpdate(scope: update.libScope, folder: folder, pins: pins)
         } else {
-            let packages = await SwiftPackage.collectVersions(for: pins, ignoringPrerelease: ignorePrerelease, onlyMajorUpdates: onlyMajor)
+            let packages = await SwiftPackage.collectVersions(for: pins, ignoringPrerelease: ignorePrerelease, onlyMajorUpdates: onlyMajor, checkSecurity: checkSecurity)
             packages.output(format: isRunningInXcode ? .xcode : format.libFormat, includeUpToDatePackages: includeUpToDate)
         }
     }

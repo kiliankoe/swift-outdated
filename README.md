@@ -46,6 +46,27 @@ This lists all your outdated dependencies, the currently resolved version and th
 
 Run the application using `-u` or `--include-up-to-date` command line switch and it will print out current dependencies with their version and ignored ones with their revisions.
 
+### Security checks
+
+Use `--check-security` to add security columns to the output — a per-version CVE status for both your current and the latest version, plus a repository security score:
+
+```
+$ swift outdated --check-security
+| Package               | Current | Sec. Current | Latest | Sec. Latest | Score    | URL                                                |
+|-----------------------|---------|--------------|--------|-------------|----------|----------------------------------------------------|
+| rainbow               | 3.2.0   | ✓ No CVEs    | 4.0.1  | ✓ No CVEs   | ⚠ 2.9/10 | https://github.com/onevcat/Rainbow.git             |
+| swift-argument-parser | 1.1.4   | ⚠ 1 CVE      | 1.2.2  | ✓ No CVEs   | ✓ 6.8/10 | https://github.com/apple/swift-argument-parser.git |
+```
+
+Each package is checked against two sources:
+
+- **[OSV](https://osv.dev)** — known CVEs for a specific version. Reported per version, so you can see when updating clears a known vulnerability. `✓ No CVEs` means no known advisories, `?` means the status couldn't be determined.
+- **[OpenSSF Scorecard](https://securityscorecards.dev)** — repository security posture score (0–10), covering pinned dependencies, signed releases, active maintenance, and more. This rates the repository, not a version, so it's a single `Score` column; scores below 5 are flagged.
+
+Both APIs are free and require no authentication. Checks run concurrently and do not affect the default output when the flag is omitted. The results are also included in `--format json` output.
+
+> **Note:** Scorecard is GitHub-only; packages hosted elsewhere will show `?` for the score. Full supply chain attack detection (malicious code injection, typosquatting) is not yet available for Swift via any public free API.
+
 ### Library
 
 This packages also exposes a library target called `Outdated`. Use this if you want to integrate the functionality into your project.
