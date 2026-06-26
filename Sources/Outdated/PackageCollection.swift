@@ -67,15 +67,18 @@ extension PackageCollection {
             return [
                 base.package,
                 base.currentVersion.description,
-                osvLabel(for: security?.currentOSV),
+                SecurityLabel.osv(security?.currentOSV),
                 base.coloredLatestVersion,
-                osvLabel(for: security?.latestOSV),
-                scoreLabel(for: security?.scorecardScore),
+                SecurityLabel.osv(security?.latestOSV),
+                SecurityLabel.score(security?.scorecardScore),
                 base.url.blue
             ]
         }
+    }
 
-        private func osvLabel(for status: OSVStatus?) -> String {
+    /// Renders the security columns. CVE status (OSV) is version-specific; the Scorecard score rates the repository.
+    enum SecurityLabel {
+        static func osv(_ status: OSVStatus?) -> String {
             switch status {
             case .vulnerable(let count, _):
                 return "⚠ \(count) CVE\(count > 1 ? "s" : "")".red
@@ -87,8 +90,7 @@ extension PackageCollection {
             }
         }
 
-        // Scorecard rates the repository (0–10), independent of version. Low scores are flagged.
-        private func scoreLabel(for score: Double?) -> String {
+        static func score(_ score: Double?) -> String {
             guard let score = score else { return "?".dim }
             let scoreStr = String(format: "%.1f/10", score)
             return score < 5.0 ? "⚠ \(scoreStr)".yellow : "✓ \(scoreStr)".green
