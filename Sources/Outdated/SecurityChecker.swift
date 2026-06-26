@@ -20,10 +20,14 @@ public struct SecurityPair: Sendable {
 }
 
 public enum SecurityChecker {
+    /// Per-request network timeout. Keeps the command from hanging indefinitely on a slow/unreachable API.
+    private static let requestTimeout: TimeInterval = 10
+
     public static func check(
         packages: [(name: String, url: String, currentVersion: String, latestVersion: String)]
     ) async -> [String: SecurityPair] {
-        await withTaskGroup(of: (String, SecurityPair).self) { group in
+        FileHandle.standardError.write(Data("Checking security advisories for \(packages.count) package(s)…\n".utf8))
+        return await withTaskGroup(of: (String, SecurityPair).self) { group in
             for pkg in packages {
                 group.addTask {
                     let pair = await checkPackage(url: pkg.url, currentVersion: pkg.currentVersion, latestVersion: pkg.latestVersion)
@@ -61,7 +65,7 @@ public enum SecurityChecker {
         guard let data = try? JSONSerialization.data(withJSONObject: body),
               let endpoint = URL(string: "https://api.osv.dev/v1/query") else { return .unknown }
 
-        var request = URLRequest(url: endpoint)
+        var request = URLRequest(url: endpoint, timeoutInterval: requestTimeout)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.httpBody = data
@@ -99,7 +103,8 @@ public enum SecurityChecker {
             return nil
         }
 
-        guard let (data, _) = try? await URLSession.shared.data(from: endpoint),
+        let request = URLRequest(url: endpoint, timeoutInterval: requestTimeout)
+        guard let (data, _) = try? await URLSession.shared.data(for: request),
               let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
               let score = json["score"] as? Double else {
             return nil
