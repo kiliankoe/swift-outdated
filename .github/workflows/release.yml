@@ -14,8 +14,9 @@ jobs:
     - name: Checkout
       uses: actions/checkout@v4
 
-    - name: Setup Swift
-      uses: swift-actions/setup-swift@v2
+    # No Setup Swift step: the macOS runner's Xcode toolchain matches its SDK.
+    # Installing a separate Swift here pins an older compiler that can't read the
+    # newer SDK (the Linux job below still needs setup-swift).
 
     - name: Get tag name
       id: get_tag
