@@ -3,13 +3,31 @@ import Foundation
 import FoundationNetworking
 #endif
 
-public enum OSVStatus: Sendable {
+public enum OSVStatus: Sendable, Encodable {
     case safe
     case vulnerable(count: Int, ids: [String])
     case unknown
+
+    enum CodingKeys: String, CodingKey {
+        case status, cveCount, cveIds
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        switch self {
+        case .safe:
+            try container.encode("safe", forKey: .status)
+        case .vulnerable(let count, let ids):
+            try container.encode("vulnerable", forKey: .status)
+            try container.encode(count, forKey: .cveCount)
+            try container.encode(ids, forKey: .cveIds)
+        case .unknown:
+            try container.encode("unknown", forKey: .status)
+        }
+    }
 }
 
-public struct SecurityPair: Sendable {
+public struct SecurityPair: Sendable, Encodable {
     // CVE status is version-specific, so it's tracked separately for each version.
     public let currentOSV: OSVStatus
     public let latestOSV: OSVStatus

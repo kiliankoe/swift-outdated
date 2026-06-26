@@ -9,7 +9,7 @@ public struct PackageCollection: Encodable {
     public var securityResults: [String: SecurityPair]?
 
     enum CodingKeys: String, CodingKey {
-        case outdatedPackages, ignoredPackages, upToDatePackages
+        case outdatedPackages, ignoredPackages, upToDatePackages, securityResults
     }
 }
 
@@ -26,7 +26,11 @@ extension PackageCollection {
         switch format {
         case .xcode:
             self.outdatedPackages.forEach {
-                print("warning: Dependency \"\($0.package)\" is outdated (\($0.currentVersion) < \($0.latestVersion)) → \($0.url)")
+                var warning = "warning: Dependency \"\($0.package)\" is outdated (\($0.currentVersion) < \($0.latestVersion)) → \($0.url)"
+                if case .vulnerable(let count, _)? = securityResults?[$0.package]?.currentOSV {
+                    warning += " — \(count) known CVE\(count > 1 ? "s" : "")"
+                }
+                print(warning)
             }
         case .json:
             let encoder = JSONEncoder()
