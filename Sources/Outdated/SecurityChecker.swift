@@ -1,4 +1,7 @@
 import Foundation
+#if canImport(FoundationNetworking)
+import FoundationNetworking
+#endif
 
 public struct SecurityInfo: Sendable {
     public enum OSVStatus: Sendable {
