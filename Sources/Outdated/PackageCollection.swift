@@ -84,8 +84,9 @@ extension PackageCollection {
             case .vulnerable(let count, _):
                 return "⚠ \(count) CVE\(count > 1 ? "s" : "")".red
             case .safe:
-                return "✓ Safe".green
+                return "✓ No CVEs".green
             case .unknown, .none:
+                // Couldn't determine CVE status (no advisory data or the query failed) — not the same as "safe".
                 return "?".dim
             }
         }
