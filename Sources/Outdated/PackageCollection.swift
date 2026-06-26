@@ -57,7 +57,7 @@ extension PackageCollection {
         let base: OutdatedPackage
         let security: SecurityPair?
 
-        static let columnHeaders = ["Package", "Current", "Sec. Current", "Latest", "Sec. Latest", "URL"]
+        static let columnHeaders = ["Package", "Current", "Sec. Current", "Latest", "Sec. Latest", "Score", "URL"]
 
         var tableValues: [CustomStringConvertible] {
             let majorDiff = base.latestVersion.major - base.currentVersion.major
@@ -71,27 +71,30 @@ extension PackageCollection {
             return [
                 base.package,
                 base.currentVersion.description,
-                securityLabel(for: security?.current),
+                osvLabel(for: security?.currentOSV),
                 latestStr,
-                securityLabel(for: security?.latest),
+                osvLabel(for: security?.latestOSV),
+                scoreLabel(for: security?.scorecardScore),
                 base.url.blue
             ]
         }
 
-        private func securityLabel(for info: SecurityInfo?) -> String {
-            guard let info = info else { return "?".dim }
-            switch info.osvStatus {
+        private func osvLabel(for status: OSVStatus?) -> String {
+            switch status {
             case .vulnerable(let count, _):
                 return "⚠ \(count) CVE\(count > 1 ? "s" : "")".red
             case .safe:
-                if let score = info.scorecardScore {
-                    let scoreStr = String(format: "%.1f/10", score)
-                    return score < 5.0 ? "Score: \(scoreStr)".yellow : "✓ \(scoreStr)".green
-                }
                 return "✓ Safe".green
-            case .unknown:
+            case .unknown, .none:
                 return "?".dim
             }
+        }
+
+        // Scorecard rates the repository (0–10), independent of version. Low scores are flagged.
+        private func scoreLabel(for score: Double?) -> String {
+            guard let score = score else { return "?".dim }
+            let scoreStr = String(format: "%.1f/10", score)
+            return score < 5.0 ? "⚠ \(scoreStr)".yellow : "✓ \(scoreStr)".green
         }
     }
 

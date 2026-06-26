@@ -3,20 +3,18 @@ import Foundation
 import FoundationNetworking
 #endif
 
-public struct SecurityInfo: Sendable {
-    public enum OSVStatus: Sendable {
-        case safe
-        case vulnerable(count: Int, ids: [String])
-        case unknown
-    }
-
-    public let osvStatus: OSVStatus
-    public let scorecardScore: Double?
+public enum OSVStatus: Sendable {
+    case safe
+    case vulnerable(count: Int, ids: [String])
+    case unknown
 }
 
 public struct SecurityPair: Sendable {
-    public let current: SecurityInfo
-    public let latest: SecurityInfo
+    // CVE status is version-specific, so it's tracked separately for each version.
+    public let currentOSV: OSVStatus
+    public let latestOSV: OSVStatus
+    // The Scorecard score describes the repository, not a version, so it's a single value.
+    public let scorecardScore: Double?
 }
 
 public enum SecurityChecker {
@@ -47,15 +45,12 @@ public enum SecurityChecker {
         async let latestOSV = checkOSV(url: url, version: latestVersion)
         async let score = checkScorecard(url: url)
         let (c, l, s) = await (currentOSV, latestOSV, score)
-        return SecurityPair(
-            current: SecurityInfo(osvStatus: c, scorecardScore: s),
-            latest: SecurityInfo(osvStatus: l, scorecardScore: s)
-        )
+        return SecurityPair(currentOSV: c, latestOSV: l, scorecardScore: s)
     }
 
     // MARK: - OSV
 
-    private static func checkOSV(url: String, version: String) async -> SecurityInfo.OSVStatus {
+    private static func checkOSV(url: String, version: String) async -> OSVStatus {
         guard let packageName = osvPackageName(from: url) else { return .unknown }
 
         let body: [String: Any] = [
