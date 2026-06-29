@@ -11,14 +11,17 @@ public struct SwiftPackage: Sendable {
     public let package: String
     public let repositoryURL: String
     public let revision: String?
+    /// The branch a ref pin tracks, when pinned via `.branch(_:)` rather than a bare revision.
+    public let branch: String?
     public let version: Version?
-    
+
     private let gitProvider: GitRemoteProvider
-    
-    public init(package: String, repositoryURL: String, revision: String?, version: Version?, gitProvider: GitRemoteProvider = ShellGitRemoteProvider()) {
+
+    public init(package: String, repositoryURL: String, revision: String?, branch: String? = nil, version: Version?, gitProvider: GitRemoteProvider = ShellGitRemoteProvider()) {
         self.package = package
         self.repositoryURL = repositoryURL
         self.revision = revision
+        self.branch = branch
         self.version = version
         self.gitProvider = gitProvider
     }
@@ -26,7 +29,7 @@ public struct SwiftPackage: Sendable {
 
 extension SwiftPackage: Encodable {
     enum CodingKeys: String, CodingKey {
-        case package, repositoryURL, revision, version
+        case package, repositoryURL, revision, branch, version
     }
 }
 
@@ -41,13 +44,15 @@ extension SwiftPackage: Hashable {
         hasher.combine(package)
         hasher.combine(repositoryURL)
         hasher.combine(revision)
+        hasher.combine(branch)
         hasher.combine(version)
     }
-    
+
     public static func == (lhs: SwiftPackage, rhs: SwiftPackage) -> Bool {
         return lhs.package == rhs.package &&
                lhs.repositoryURL == rhs.repositoryURL &&
                lhs.revision == rhs.revision &&
+               lhs.branch == rhs.branch &&
                lhs.version == rhs.version
     }
 }
@@ -139,6 +144,7 @@ extension SwiftPackage {
                     package: $0.package,
                     repositoryURL: $0.repositoryURL,
                     revision: $0.state.revision,
+                    branch: $0.state.branch,
                     version: Version($0.state.version ?? "")
                 )
             }
@@ -148,6 +154,7 @@ extension SwiftPackage {
                     package: $0.identity,
                     repositoryURL: $0.location,
                     revision: $0.state.revision,
+                    branch: $0.state.branch,
                     version: Version($0.state.version ?? "")
                 )
             }
