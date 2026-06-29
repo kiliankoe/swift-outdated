@@ -199,4 +199,29 @@ struct VersionCollectionTests {
         #expect(packageCollectionMajorOnly.outdatedPackages.count == 1)
         #expect(packageCollectionMajorOnly.outdatedPackages.first?.latestVersion == Version(3, 0, 0))
     }
+
+    @Test("Ref-pinned packages are ignored when no checkout is available")
+    func refPinnedPackagesAreIgnoredWithoutCheckout() async {
+        let mockProvider = MockGitRemoteProvider()
+        // A branch/revision pin resolves to a revision but has no version.
+        let refPinned = SwiftPackage(
+            package: "RefPinned",
+            repositoryURL: "https://github.com/example/ref-pinned.git",
+            revision: "9f39744e025c7d377987f30b03770805dcb0bcd1",
+            version: nil,
+            gitProvider: mockProvider
+        )
+
+        let collection = await SwiftPackage.collectVersions(
+            for: [refPinned],
+            ignoringPrerelease: false,
+            onlyMajorUpdates: false
+        )
+
+        // Without a checkout locator, ref pins keep the historical behavior:
+        // ignored, never queried, and not surfaced as outdated/up-to-date.
+        #expect(collection.ignoredPackages.map(\.package) == ["RefPinned"])
+        #expect(collection.outdatedPackages.isEmpty)
+        #expect(collection.upToDatePackages.isEmpty)
+    }
 }
