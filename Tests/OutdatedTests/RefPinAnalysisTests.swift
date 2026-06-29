@@ -58,6 +58,32 @@ struct RefPinAnalysisTests {
         #expect(analysis.currentDisplay == "main @ abc1234 (v1.2.3)")
     }
 
+    @Test("Current display omits branch when it is a revision prefix")
+    func currentDisplayOmitsRevisionPrefixBranch() {
+        // `.revision("626c3d4")` makes SwiftPM record the short SHA as the branch.
+        let analysis = RefPinAnalysis(
+            package: "rainbow",
+            branch: "626c3d4",
+            revision: "626c3d4b6b55354b4af3aa309f998fae9b31a3d9",
+            baseTag: Version(3, 2, 0),
+            latestTag: Version(4, 2, 1),
+            url: "https://github.com/onevcat/Rainbow.git"
+        )
+        #expect(analysis.currentDisplay == "626c3d4 (v3.2.0)")
+    }
+
+    @Test("Latest display is bare to match the version-pinned rows")
+    func latestDisplayIsBare() {
+        let analysis = RefPinAnalysis(
+            package: "p", revision: "abc1234",
+            baseTag: Version(1, 0, 0), latestTag: Version(2, 0, 0),
+            url: ""
+        )
+        // Shares the Latest column with version-pinned rows (e.g. "1.14.0"), so no "v" prefix.
+        #expect(analysis.latestDisplay.contains("2.0.0"))
+        #expect(!analysis.latestDisplay.contains("v"))
+    }
+
     @Test("Is outdated when latest is newer than base")
     func isOutdatedWhenLatestNewer() {
         let analysis = RefPinAnalysis(

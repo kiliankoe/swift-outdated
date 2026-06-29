@@ -45,24 +45,29 @@ extension PackageCollection {
             let json = try! encoder.encode(self)
             print(String(data: json, encoding: .utf8)!)
         case .markdown:
+            // Branch/revision pins share the outdated table: their "Pinned" cell sits in the Current
+            // column. Behind pins show by default; all of them when including up-to-date packages.
+            let refPins = includeUpToDatePackages ? refPinnedPackages : refPinnedPackages.filter { $0.isOutdated }
+            let title = includeUpToDatePackages ? "## Outdated packages" : nil
+
             if let securityResults = securityResults {
-                let enriched = outdatedPackages.map { OutdatedPackageWithSecurity(base: $0, security: securityResults[$0.package]) }
-                render(includeUpToDatePackages ? "## Outdated packages" : nil, enriched)
+                var rows = outdatedPackages.map { OutdatedPackageWithSecurity(base: $0, security: securityResults[$0.package]).tableValues }
+                rows += refPins.map { refPinSecurityRow($0) }
+                renderRows(title, headers: OutdatedPackageWithSecurity.columnHeaders, rows: rows)
             } else {
-                render(includeUpToDatePackages ? "## Outdated packages": nil, self.outdatedPackages)
+                var rows = outdatedPackages.map { $0.tableValues }
+                rows += refPins.map { $0.tableValues }
+                renderRows(title, headers: OutdatedPackage.columnHeaders, rows: rows)
             }
-            
+
             if includeUpToDatePackages {
                 render("## Up to date packages", self.upToDatePackages)
                 render("## Ignored packages", self.ignoredPackages)
-                render("## Branch/revision pins", self.refPinnedPackages)
             } else {
                 if !self.ignoredPackages.isEmpty {
                     let ignoredString = self.ignoredPackages.map { $0.package }.joined(separator: ", ")
                     print("Ignored because of revision or branch pins: \(ignoredString)")
                 }
-                // Only the pins that are actually behind a newer tag by default.
-                render("## Branch/revision pins", self.refPinnedPackages.filter { $0.isOutdated })
             }
         }
     }
@@ -109,11 +114,31 @@ extension PackageCollection {
 
     private func render<T: TextTableRepresentable>(_ title: String?, _ objects: [T]) {
         guard !objects.isEmpty else { return }
-        
-        var table = TextTable(objects: objects)
+        renderRows(title, headers: T.columnHeaders, rows: objects.map { $0.tableValues })
+    }
 
-        // table in Markdown style.
+    /// Ref pins aren't security-scanned, so the CVE/score cells are unknown.
+    private func refPinSecurityRow(_ analysis: RefPinAnalysis) -> [CustomStringConvertible] {
+        [
+            analysis.package,
+            analysis.currentDisplay,
+            "?".dim,
+            analysis.latestDisplay,
+            "?".dim,
+            "?".dim,
+            analysis.url.blue,
+        ]
+    }
+
+    /// Renders rows from possibly-heterogeneous sources under a shared set of headers, in the
+    /// repository's Markdown table style.
+    private func renderRows(_ title: String?, headers: [String], rows: [[CustomStringConvertible]]) {
+        guard !rows.isEmpty else { return }
+
+        var table = TextTable(columns: headers.map { TextTableColumn(header: $0) })
         table.cornerFence = "|"
+        rows.forEach { table.addRow(values: $0) }
+
         let rendered = table.render()
         // Remove unnecessary separators for Markdown table (first and last fences).
         let tableOutput = rendered
@@ -121,7 +146,7 @@ extension PackageCollection {
             .dropFirst()
             .dropLast(1)
             .joined(separator: "\n")
-        
+
         if let title {
             print(title)
         }

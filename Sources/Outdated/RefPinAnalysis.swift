@@ -38,13 +38,33 @@ public struct RefPinAnalysis: Sendable {
     /// Current pin display, e.g. `main @ abc1234 (v1.2.0)`, `abc1234 (v1.2.0)`, or just `abc1234`.
     public var currentDisplay: String {
         var display = shortRevision
-        if let branch {
+        // Only show a branch when it's a real branch name. Pinning via `.revision("<short-sha>")`
+        // makes SwiftPM record the short SHA as the "branch", which would read as "626c3d4 @ 626c3d4".
+        if let branch, !revision.hasPrefix(branch) {
             display = "\(branch) @ \(display)"
         }
         if let base = baseTag {
             display += " (v\(base))"
         }
         return display
+    }
+
+    /// Colored latest-version cell, or `N/A` when no latest tag is known. Rendered bare (no `v`
+    /// prefix) to match the version-pinned rows it shares the Latest column with.
+    public var latestDisplay: String {
+        guard let latest = latestTag else { return "N/A" }
+        var str = "\(latest)"
+        if isOutdated {
+            // Color by how many major versions the latest tag is ahead of the base, matching
+            // the main outdated table's convention.
+            switch (baseTag.map { latest.major - $0.major }) ?? 0 {
+            case 1: str = str.green
+            case 2: str = str.yellow
+            case 3...: str = str.red
+            default: break
+            }
+        }
+        return str
     }
 
     /// Whether a newer tag exists than the one the pinned revision sits at.
@@ -73,28 +93,10 @@ extension RefPinAnalysis: TextTableRepresentable {
     ]
 
     public var tableValues: [CustomStringConvertible] {
-        let latestDisplay: String
-        if let latest = latestTag {
-            var latestStr = "v\(latest)"
-            if isOutdated {
-                // Color by how many major versions the latest tag is ahead of the base, matching
-                // the main outdated table's convention.
-                switch (baseTag.map { latest.major - $0.major }) ?? 0 {
-                case 1: latestStr = latestStr.green
-                case 2: latestStr = latestStr.yellow
-                case 3...: latestStr = latestStr.red
-                default: break
-                }
-            }
-            latestDisplay = latestStr
-        } else {
-            latestDisplay = "N/A"
-        }
-
         return [
             self.package,
             self.currentDisplay,
-            latestDisplay,
+            self.latestDisplay,
             self.url.blue
         ]
     }

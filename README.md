@@ -48,17 +48,17 @@ Run the application using `-u` or `--include-up-to-date` command line switch and
 
 ### Branch and revision pins
 
-Dependencies pinned to a branch or a specific revision have no resolved version, so there's nothing to compare against a list of remote tags. `swift-outdated` instead analyzes them against the local checkout that SwiftPM and Xcode already create, showing the tag the pinned commit sits at and the latest available version:
+Dependencies pinned to a branch or a specific revision have no resolved version, so there's nothing to compare against a list of remote tags. `swift-outdated` instead analyzes them against the local checkout that SwiftPM and Xcode already create, showing the tag the pinned commit sits at and the latest available version — right alongside your version-pinned dependencies in the same table:
 
 ```
 $ swift outdated
-## Branch/revision pins
-| Package               | Pinned                  | Latest | URL                                                |
-|-----------------------|-------------------------|--------|----------------------------------------------------|
-| swift-argument-parser | main @ fd4c3b6 (v1.0.0) | v1.8.2 | https://github.com/apple/swift-argument-parser.git |
+| Package   | Current          | Latest | URL                                    |
+|-----------|------------------|--------|----------------------------------------|
+| swift-log | 1.6.4            | 1.14.0 | https://github.com/apple/swift-log.git |
+| rainbow   | 626c3d4 (v3.2.0) | 4.2.1  | https://github.com/onevcat/Rainbow.git |
 ```
 
-The `Pinned` column shows the branch (if any), the short revision, and the closest tag at or before that commit (`git describe`); `Latest` is the newest tag available upstream. This makes it obvious when a pin can move back to a normal tagged release — for example because a fix you were tracking on a branch has since shipped.
+For a ref pin, the `Current` column shows the branch (if any), the short revision, and the closest tag at or before that commit (`git describe`); `Latest` is the newest tag available upstream. This makes it obvious when a pin can move back to a normal tagged release — for example because a fix you were tracking on a branch has since shipped.
 
 This works automatically when a checkout is present. `swift-outdated` looks in `.build/checkouts` (run `swift build` or `swift package resolve` first) and in an Xcode `SourcePackages/checkouts` directory; use `--checkouts-path` to point it elsewhere. Pins without an available checkout keep the previous behavior and are listed as ignored. The analysis is also included in `--format json` output and emitted as warnings in Xcode.
 
