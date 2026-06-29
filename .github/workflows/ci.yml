@@ -16,7 +16,7 @@ jobs:
 
     steps:
     - name: Checkout
-      uses: actions/checkout@v4
+      uses: actions/checkout@v5
 
     # On macOS the runner's Xcode toolchain matches its SDK; installing a separate
     # Swift here pins an older compiler that can't read the newer SDK. Only Linux
@@ -26,7 +26,7 @@ jobs:
       uses: swift-actions/setup-swift@v2
 
     - name: Cache Swift Package Manager
-      uses: actions/cache@v4
+      uses: actions/cache@v6
       with:
         path: |
           .build
@@ -62,7 +62,7 @@ jobs:
 
     steps:
     - name: Checkout
-      uses: actions/checkout@v4
+      uses: actions/checkout@v5
 
     - name: Check Swift Format
       run: |

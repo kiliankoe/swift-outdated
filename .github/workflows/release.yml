@@ -12,7 +12,7 @@ jobs:
 
     steps:
     - name: Checkout
-      uses: actions/checkout@v4
+      uses: actions/checkout@v5
 
     # No Setup Swift step: the macOS runner's Xcode toolchain matches its SDK.
     # Installing a separate Swift here pins an older compiler that can't read the
@@ -51,7 +51,7 @@ jobs:
         echo "macOS binary test passed"
 
     - name: Upload macOS Artifacts
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v7
       with:
         name: macos-binaries
         path: |
@@ -64,7 +64,7 @@ jobs:
 
     steps:
     - name: Checkout
-      uses: actions/checkout@v4
+      uses: actions/checkout@v5
 
     - name: Setup Swift
       uses: swift-actions/setup-swift@v2
@@ -102,7 +102,7 @@ jobs:
         echo "Linux binary test passed"
 
     - name: Upload Linux Artifacts
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v7
       with:
         name: linux-binaries
         path: |
@@ -119,19 +119,19 @@ jobs:
 
     steps:
     - name: Checkout
-      uses: actions/checkout@v4
+      uses: actions/checkout@v5
 
     - name: Get tag name
       id: get_tag
       run: echo "TAG_NAME=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
 
     - name: Download macOS Artifacts
-      uses: actions/download-artifact@v4
+      uses: actions/download-artifact@v8
       with:
         name: macos-binaries
 
     - name: Download Linux Artifacts
-      uses: actions/download-artifact@v4
+      uses: actions/download-artifact@v8
       with:
         name: linux-binaries
 
