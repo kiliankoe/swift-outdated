@@ -7,9 +7,10 @@ public struct PackageCollection: Encodable {
     public var ignoredPackages: [SwiftPackage]
     public var upToDatePackages: [SwiftPackage]
     public var securityResults: [String: SecurityPair]?
+    public var refPinnedPackages: [RefPinAnalysis] = []
 
     enum CodingKeys: String, CodingKey {
-        case outdatedPackages, ignoredPackages, upToDatePackages, securityResults
+        case outdatedPackages, ignoredPackages, upToDatePackages, securityResults, refPinnedPackages
     }
 }
 
@@ -21,7 +22,7 @@ extension PackageCollection {
     }
 
     public func output(format: OutputFormat, includeUpToDatePackages: Bool = false) {
-        guard !self.outdatedPackages.isEmpty || !self.ignoredPackages.isEmpty else { return }
+        guard !self.outdatedPackages.isEmpty || !self.ignoredPackages.isEmpty || !self.refPinnedPackages.isEmpty else { return }
 
         switch format {
         case .xcode:
@@ -31,6 +32,12 @@ extension PackageCollection {
                     warning += " — \(count) known CVE\(count > 1 ? "s" : "")"
                 }
                 print(warning)
+            }
+            self.refPinnedPackages.filter { $0.isOutdated }.forEach {
+                let pin = $0.branch.map { "branch \($0)" } ?? "a revision"
+                let base = $0.baseTag.map { " (~v\($0))" } ?? ""
+                let latest = $0.latestTag.map { "v\($0)" } ?? "a newer tag"
+                print("warning: Dependency \"\($0.package)\" is pinned to \(pin) at \($0.shortRevision)\(base) but \(latest) is available → \($0.url)")
             }
         case .json:
             let encoder = JSONEncoder()
@@ -48,11 +55,14 @@ extension PackageCollection {
             if includeUpToDatePackages {
                 render("## Up to date packages", self.upToDatePackages)
                 render("## Ignored packages", self.ignoredPackages)
+                render("## Branch/revision pins", self.refPinnedPackages)
             } else {
                 if !self.ignoredPackages.isEmpty {
                     let ignoredString = self.ignoredPackages.map { $0.package }.joined(separator: ", ")
                     print("Ignored because of revision or branch pins: \(ignoredString)")
                 }
+                // Only the pins that are actually behind a newer tag by default.
+                render("## Branch/revision pins", self.refPinnedPackages.filter { $0.isOutdated })
             }
         }
     }

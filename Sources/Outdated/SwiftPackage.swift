@@ -186,7 +186,7 @@ extension SwiftPackage {
         }
     }
 
-    public static func collectVersions(for packages: [SwiftPackage], ignoringPrerelease: Bool, onlyMajorUpdates: Bool, checkSecurity: Bool = false) async -> PackageCollection {
+    public static func collectVersions(for packages: [SwiftPackage], ignoringPrerelease: Bool, onlyMajorUpdates: Bool, checkSecurity: Bool = false, checkoutLocator: CheckoutLocator? = nil) async -> PackageCollection {
         log.info("Collecting versions for \(packages.map { $0.package }.joined(separator: ", ")).")
         let versions = await fetchAvailableVersions(for: packages)
 
@@ -216,13 +216,21 @@ extension SwiftPackage {
                         package: package.package,
                         repositoryURL: package.repositoryURL,
                         revision: package.revision,
+                        branch: package.branch,
                         version: package.version
                     )
                 )
             }
         }
 
-        let ignoredPackages = packages.filter { !$0.hasResolvedVersion }
+        // Branch/revision pins: analyze against a local checkout when one is available, otherwise
+        // keep the historical "ignored" behavior.
+        let (refPinnedPackages, ignoredPackages) = await analyzeRefPins(
+            packages.filter { !$0.hasResolvedVersion },
+            ignoringPrerelease: ignoringPrerelease,
+            onlyMajorUpdates: onlyMajorUpdates,
+            checkoutLocator: checkoutLocator
+        )
         if !ignoredPackages.isEmpty {
             log.info("Ignoring \(ignoredPackages.map { $0.package }.joined(separator: ", ")) because of non-version pins.")
         }
@@ -237,8 +245,70 @@ extension SwiftPackage {
             outdatedPackages: outdatedPackages.sorted(),
             ignoredPackages: ignoredPackages.sorted(),
             upToDatePackages: upToDatePackages.sorted(),
-            securityResults: securityResults
+            securityResults: securityResults,
+            refPinnedPackages: refPinnedPackages.sorted()
         )
+    }
+
+    /// For each ref/branch pin, locate its checkout and derive how outdated it is: the base tag comes
+    /// from the local commit graph (`git describe`), the latest from `ls-remote` (fresh). Pins without a
+    /// usable checkout are returned as `ignored`, matching the pre-existing behavior.
+    private static func analyzeRefPins(
+        _ refPinned: [SwiftPackage],
+        ignoringPrerelease: Bool,
+        onlyMajorUpdates: Bool,
+        checkoutLocator: CheckoutLocator?
+    ) async -> (analyses: [RefPinAnalysis], ignored: [SwiftPackage]) {
+        guard let locator = checkoutLocator, !refPinned.isEmpty else {
+            return ([], refPinned)
+        }
+
+        let localGit = ShellLocalGitProvider()
+        let results: [(SwiftPackage, RefPinAnalysis?)] = await withTaskGroup(of: (SwiftPackage, RefPinAnalysis?).self) { group in
+            for package in refPinned {
+                group.addTask {
+                    guard let revision = package.revision,
+                          let checkoutPath = locator.findCheckout(for: package.package, repositoryURL: package.repositoryURL)
+                    else {
+                        return (package, nil)
+                    }
+
+                    let baseTag = ((try? localGit.describeTag(revision: revision, checkoutPath: checkoutPath)) ?? nil)
+                        .flatMap { Version(tolerant: $0) }
+                    let latest = getLatestVersion(
+                        from: package.availableVersions(),
+                        currentVersion: baseTag ?? Version(0, 0, 0),
+                        ignoringPrerelease: ignoringPrerelease,
+                        onlyMajorUpdates: onlyMajorUpdates
+                    )
+                    return (package, RefPinAnalysis(
+                        package: package.package,
+                        branch: package.branch,
+                        revision: revision,
+                        baseTag: baseTag,
+                        latestTag: latest,
+                        url: package.repositoryURL
+                    ))
+                }
+            }
+
+            var out = [(SwiftPackage, RefPinAnalysis?)]()
+            for await result in group {
+                out.append(result)
+            }
+            return out
+        }
+
+        var analyses = [RefPinAnalysis]()
+        var ignored = [SwiftPackage]()
+        for (package, analysis) in results {
+            if let analysis {
+                analyses.append(analysis)
+            } else {
+                ignored.append(package)
+            }
+        }
+        return (analyses, ignored)
     }
 
     /// Collect versions for update mode, returning tuples suitable for PackageUpdater.

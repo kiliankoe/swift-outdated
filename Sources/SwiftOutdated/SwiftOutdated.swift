@@ -42,12 +42,19 @@ public struct SwiftOutdated: AsyncParsableCommand, Sendable {
     @Flag(name: .long, help: "Check packages against OSV and OpenSSF Scorecard for known vulnerabilities.")
     var checkSecurity: Bool = false
 
+    @Option(name: .long, help: "Path to a package checkouts directory (overrides auto-detection of .build/checkouts and SourcePackages/checkouts).")
+    var checkoutsPath: String?
+
     public static let configuration = CommandConfiguration(
         commandName: "swift-outdated",
         abstract: "Check for outdated dependencies.",
         discussion: """
         swift-outdated will output an overview of your outdated dependencies found in your Package.resolved file.
-        Dependencies pinned to specific revisions or branches are ignored (and shown as such).
+
+        Dependencies pinned to a branch or revision are analyzed against their local checkout (from
+        .build/checkouts or an Xcode SourcePackages/checkouts directory) to show the tag they sit at and
+        the latest available version. This happens automatically when a checkout is present; pins without
+        one are shown as ignored, as before.
 
         The latest version for dependencies one major version behind is colored green, yellow for two major versions
         and red for anything above that.
@@ -71,7 +78,8 @@ public struct SwiftOutdated: AsyncParsableCommand, Sendable {
         if let update = update {
             try await runUpdate(scope: update.libScope, folder: folder, pins: pins)
         } else {
-            let packages = await SwiftPackage.collectVersions(for: pins, ignoringPrerelease: ignorePrerelease, onlyMajorUpdates: onlyMajor, checkSecurity: checkSecurity)
+            let checkoutLocator = CheckoutLocator(projectFolder: folder, explicitPath: checkoutsPath)
+            let packages = await SwiftPackage.collectVersions(for: pins, ignoringPrerelease: ignorePrerelease, onlyMajorUpdates: onlyMajor, checkSecurity: checkSecurity, checkoutLocator: checkoutLocator)
             packages.output(format: isRunningInXcode ? .xcode : format.libFormat, includeUpToDatePackages: includeUpToDate)
         }
     }

@@ -1,6 +1,7 @@
 import Foundation
 import Testing
 import Files
+import Version
 @testable import Outdated
 
 @Suite("Local Git Provider Tests")
@@ -77,5 +78,58 @@ struct LocalGitProviderTests {
         #expect(throws: (any Error).self) {
             try provider.describeTag(revision: repo.shaA, checkoutPath: repo.path)
         }
+    }
+
+    @Test("collectVersions analyzes a ref pin against a real local checkout")
+    func collectVersionsAnalyzesRefPin() async throws {
+        // A project dir containing a real checkout under .build/checkouts/<name>.
+        let project = try Folder.temporary.createSubfolder(named: "proj-\(UUID().uuidString)")
+        defer { try? project.delete() }
+        let checkouts = try project.createSubfolder(at: ".build/checkouts")
+        let checkout = try checkouts.createSubfolder(named: "demo")
+        let path = checkout.path
+        let repoURL = "https://github.com/test/demo.git"
+
+        try git(["init", "-q"], in: path)
+        try git(["remote", "add", "origin", repoURL], in: path)
+        try checkout.createFile(named: "a.txt").write("a")
+        try git(["add", "."], in: path)
+        try git(["commit", "-q", "-m", "A"], in: path)
+        try git(["tag", "1.0.0"], in: path)
+        try checkout.createFile(named: "b.txt").write("b")
+        try git(["add", "."], in: path)
+        try git(["commit", "-q", "-m", "B"], in: path)
+        let headSha = try git(["rev-parse", "HEAD"], in: path)
+
+        // ls-remote (latest) is mocked; the base tag comes from the real checkout above.
+        let mock = MockGitRemoteProvider()
+        mock.setTagRefsResponse(for: repoURL, response: """
+        0000000000000000000000000000000000000000\trefs/tags/1.0.0
+        1111111111111111111111111111111111111111\trefs/tags/2.0.0
+        """)
+        let package = SwiftPackage(
+            package: "demo",
+            repositoryURL: repoURL,
+            revision: headSha,
+            branch: "main",
+            version: nil,
+            gitProvider: mock
+        )
+
+        let collection = await SwiftPackage.collectVersions(
+            for: [package],
+            ignoringPrerelease: false,
+            onlyMajorUpdates: false,
+            checkoutLocator: CheckoutLocator(projectFolder: project, explicitPath: nil)
+        )
+
+        #expect(collection.ignoredPackages.isEmpty)
+        #expect(collection.refPinnedPackages.count == 1)
+        let analysis = try #require(collection.refPinnedPackages.first)
+        #expect(analysis.package == "demo")
+        #expect(analysis.branch == "main")
+        #expect(analysis.baseTag == Version(1, 0, 0))   // describe(HEAD) → 1.0.0
+        #expect(analysis.latestTag == Version(2, 0, 0))  // from mocked ls-remote
+        #expect(analysis.isOutdated == true)
     }
 }
