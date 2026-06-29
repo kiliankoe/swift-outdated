@@ -68,7 +68,7 @@ extension SwiftPackage {
                         .last!
                         .trimmingCharacters(in: .whitespaces)
                         .replacingOccurrences(
-                            of: #"refs\/tags\/(v(?=\d))?"#,
+                            of: #"refs\/tags\/"#,
                             with: "",
                             options: .regularExpression
                         )
@@ -76,7 +76,9 @@ extension SwiftPackage {
                 // Filter annotated tags, we just need a list of available tags, not the specific
                 // commits they point to.
                 .filter { !$0.contains("^{}") }
-                .compactMap { Version($0) }
+                // Use the tolerant parser so two-component tags (e.g. "0.5") and
+                // a leading "v" are normalized rather than dropped.
+                .compactMap { Version(tolerant: $0) }
                 .sorted()
         } catch {
             log.error("Error on git ls-remote for \(package): \(error)")

@@ -97,6 +97,56 @@ struct VersionCollectionTests {
         #expect(versions.contains(Version(2, 0, 0)))
     }
     
+    @Test("Two-component version tags are parsed (issue #56)")
+    func twoComponentVersionTags() async {
+        let mockProvider = MockGitRemoteProvider()
+        let repositoryURL = "https://github.com/swiftlang/swift-subprocess.git"
+
+        // swift-subprocess publishes two-component tags like "0.5" alongside
+        // "0.2.1". Strict semver parsing dropped the two-component tags, leaving
+        // "0.2.1" as the bogus "latest".
+        mockProvider.setTagRefsResponse(for: repositoryURL, response: """
+        44be5d56aa4b26dc2003a67c0288a6a68366a87d	refs/tags/0.1
+        d781b8f079f3747f970bef3e4aadece29d4d0385	refs/tags/0.2
+        44922dfe46380cd354ca4b0208e717a3e92b13dd	refs/tags/0.2.1
+        ba5888ad7758cbcbe7abebac37860b1652af2d9c	refs/tags/0.3
+        13d087685b95d64d6aac9b94500d347bbe84c39b	refs/tags/0.4
+        11633673a41f509f8945f23c96c7acd4adafd679	refs/tags/0.5
+        5715ed49b0a5493cb24f3904dc2d9736c180d949	refs/tags/development-snapshot-2025-07-21
+        """)
+
+        let package = SwiftPackage(
+            package: "swift-subprocess",
+            repositoryURL: repositoryURL,
+            revision: nil,
+            version: Version(0, 5, 0),
+            gitProvider: mockProvider
+        )
+
+        let versions = package.availableVersions()
+
+        // All six numeric tags parse; the snapshot tag is dropped.
+        #expect(versions.count == 6)
+        #expect(versions == [
+            Version(0, 1, 0),
+            Version(0, 2, 0),
+            Version(0, 2, 1),
+            Version(0, 3, 0),
+            Version(0, 4, 0),
+            Version(0, 5, 0),
+        ])
+        #expect(versions.last == Version(0, 5, 0))
+
+        // The package pinned at 0.5.0 must be reported up to date, not outdated.
+        let collection = await SwiftPackage.collectVersions(
+            for: [package],
+            ignoringPrerelease: false,
+            onlyMajorUpdates: false
+        )
+        #expect(collection.outdatedPackages.isEmpty)
+        #expect(collection.upToDatePackages.contains { $0.package == "swift-subprocess" })
+    }
+
     @Test("Get latest version logic")
     func getLatestVersionLogic() async {
         let mockProvider = MockGitRemoteProvider()
