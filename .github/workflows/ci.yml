@@ -31,9 +31,12 @@ jobs:
         path: |
           .build
           ~/.cache/org.swift.swiftpm
+        # No restore-keys: a partial/stale .build from a different dependency
+        # set (e.g. before swift-testing was dropped) isn't reconciled by
+        # SwiftPM's incremental build and breaks `swift test` with errors like
+        # missing module '_TestingInternals'. Only reuse an exact-key cache,
+        # i.e. when Package.resolved and Package.swift are unchanged.
         key: ${{ runner.os }}-spm-${{ hashFiles('**/Package.resolved', '**/Package.swift') }}
-        restore-keys: |
-          ${{ runner.os }}-spm-
 
     - name: Swift Version
       run: swift --version
