@@ -7,9 +7,10 @@ public struct PackageCollection: Encodable {
     public var ignoredPackages: [SwiftPackage]
     public var upToDatePackages: [SwiftPackage]
     public var securityResults: [String: SecurityPair]?
+    public var refPinnedPackages: [RefPinAnalysis] = []
 
     enum CodingKeys: String, CodingKey {
-        case outdatedPackages, ignoredPackages, upToDatePackages, securityResults
+        case outdatedPackages, ignoredPackages, upToDatePackages, securityResults, refPinnedPackages
     }
 }
 
@@ -21,7 +22,7 @@ extension PackageCollection {
     }
 
     public func output(format: OutputFormat, includeUpToDatePackages: Bool = false) {
-        guard !self.outdatedPackages.isEmpty || !self.ignoredPackages.isEmpty else { return }
+        guard !self.outdatedPackages.isEmpty || !self.ignoredPackages.isEmpty || !self.refPinnedPackages.isEmpty else { return }
 
         switch format {
         case .xcode:
@@ -32,19 +33,33 @@ extension PackageCollection {
                 }
                 print(warning)
             }
+            self.refPinnedPackages.filter { $0.isOutdated }.forEach {
+                let pin = $0.branch.map { "branch \($0)" } ?? "a revision"
+                let base = $0.baseTag.map { " (~v\($0))" } ?? ""
+                let latest = $0.latestTag.map { "v\($0)" } ?? "a newer tag"
+                print("warning: Dependency \"\($0.package)\" is pinned to \(pin) at \($0.shortRevision)\(base) but \(latest) is available → \($0.url)")
+            }
         case .json:
             let encoder = JSONEncoder()
             encoder.outputFormatting = .prettyPrinted
             let json = try! encoder.encode(self)
             print(String(data: json, encoding: .utf8)!)
         case .markdown:
+            // Branch/revision pins share the outdated table: their "Pinned" cell sits in the Current
+            // column. Behind pins show by default; all of them when including up-to-date packages.
+            let refPins = includeUpToDatePackages ? refPinnedPackages : refPinnedPackages.filter { $0.isOutdated }
+            let title = includeUpToDatePackages ? "## Outdated packages" : nil
+
             if let securityResults = securityResults {
-                let enriched = outdatedPackages.map { OutdatedPackageWithSecurity(base: $0, security: securityResults[$0.package]) }
-                render(includeUpToDatePackages ? "## Outdated packages" : nil, enriched)
+                var rows = outdatedPackages.map { OutdatedPackageWithSecurity(base: $0, security: securityResults[$0.package]).tableValues }
+                rows += refPins.map { refPinSecurityRow($0) }
+                renderRows(title, headers: OutdatedPackageWithSecurity.columnHeaders, rows: rows)
             } else {
-                render(includeUpToDatePackages ? "## Outdated packages": nil, self.outdatedPackages)
+                var rows = outdatedPackages.map { $0.tableValues }
+                rows += refPins.map { $0.tableValues }
+                renderRows(title, headers: OutdatedPackage.columnHeaders, rows: rows)
             }
-            
+
             if includeUpToDatePackages {
                 render("## Up to date packages", self.upToDatePackages)
                 render("## Ignored packages", self.ignoredPackages)
@@ -99,11 +114,31 @@ extension PackageCollection {
 
     private func render<T: TextTableRepresentable>(_ title: String?, _ objects: [T]) {
         guard !objects.isEmpty else { return }
-        
-        var table = TextTable(objects: objects)
+        renderRows(title, headers: T.columnHeaders, rows: objects.map { $0.tableValues })
+    }
 
-        // table in Markdown style.
+    /// Ref pins aren't security-scanned, so the CVE/score cells are unknown.
+    private func refPinSecurityRow(_ analysis: RefPinAnalysis) -> [CustomStringConvertible] {
+        [
+            analysis.package,
+            analysis.currentDisplay,
+            "?".dim,
+            analysis.latestDisplay,
+            "?".dim,
+            "?".dim,
+            analysis.url.blue,
+        ]
+    }
+
+    /// Renders rows from possibly-heterogeneous sources under a shared set of headers, in the
+    /// repository's Markdown table style.
+    private func renderRows(_ title: String?, headers: [String], rows: [[CustomStringConvertible]]) {
+        guard !rows.isEmpty else { return }
+
+        var table = TextTable(columns: headers.map { TextTableColumn(header: $0) })
         table.cornerFence = "|"
+        rows.forEach { table.addRow(values: $0) }
+
         let rendered = table.render()
         // Remove unnecessary separators for Markdown table (first and last fences).
         let tableOutput = rendered
@@ -111,7 +146,7 @@ extension PackageCollection {
             .dropFirst()
             .dropLast(1)
             .joined(separator: "\n")
-        
+
         if let title {
             print(title)
         }
