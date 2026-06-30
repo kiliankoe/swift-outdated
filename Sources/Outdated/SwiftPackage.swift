@@ -190,12 +190,7 @@ extension SwiftPackage {
         // Filter before any analysis so transitive pins are dropped uniformly — a transitive ref
         // pin should disappear entirely, not resurface in the "ignored" bucket. A nil set means
         // direct deps couldn't be determined, so keep every package.
-        let packages = directDependencyURLs.map { urls in
-            allPackages.filter { urls.contains(normalizeRepositoryURL($0.repositoryURL)) }
-        } ?? allPackages
-        if directDependencyURLs != nil {
-            log.info("Reporting \(packages.count) of \(allPackages.count) packages (direct dependencies only).")
-        }
+        let packages = filterToDirectDependencies(allPackages, directDependencyURLs: directDependencyURLs)
 
         log.info("Collecting versions for \(packages.map { $0.package }.joined(separator: ", ")).")
         let versions = await fetchAvailableVersions(for: packages)
@@ -258,6 +253,22 @@ extension SwiftPackage {
             securityResults: securityResults,
             refPinnedPackages: refPinnedPackages.sorted()
         )
+    }
+
+    /// Restrict the pins to direct dependencies. A `nil` set means direct deps couldn't be
+    /// determined, so nothing is filtered. As a safety net, a non-nil set that matches *none* of
+    /// the pins also reports everything: that signals our determination missed (e.g. a Tuist or
+    /// local-package layout whose pins aren't expressed in the inspected manifest), and hiding
+    /// every package would look like the tool is broken.
+    static func filterToDirectDependencies(_ packages: [SwiftPackage], directDependencyURLs: Set<String>?) -> [SwiftPackage] {
+        guard let directURLs = directDependencyURLs else { return packages }
+        let filtered = packages.filter { directURLs.contains(normalizeRepositoryURL($0.repositoryURL)) }
+        guard !filtered.isEmpty || packages.isEmpty else {
+            log.info("Direct dependencies matched no resolved packages; reporting all.")
+            return packages
+        }
+        log.info("Reporting \(filtered.count) of \(packages.count) packages (direct dependencies only).")
+        return filtered
     }
 
     /// For each ref/branch pin, locate its checkout and derive how outdated it is: the base tag comes
