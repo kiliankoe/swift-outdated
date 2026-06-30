@@ -4,7 +4,7 @@ A swift subcommand for checking if your dependencies have an update available. T
 
 Calling `swift package update` will only update to the latest available requirements inside your specified version requirements, which totally makes sense, but you might miss that there's a new major version available if you don't check the dependency's repository regularly.
 
-This tool aims to help with that by allowing you to quickly check the remote git tags of your dependencies to see if something outside of your version requirements is available. It also aims to be smart regarding dependencies that are pinned to a branch or a specific revision, not checking transitive dependencies, following forks to their upstream, checking for known security vulnerabilities, and supporting SwiftPM, Tuist and plain Xcode projects.
+This tool aims to help with that by allowing you to quickly check the remote git tags of your dependencies to see if something outside of your version requirements is available. It also aims to be smart regarding dependencies that are pinned to a branch or a specific revision, not checking transitive dependencies, following forks to their upstream, resolving package registry dependencies, checking for known security vulnerabilities, and supporting SwiftPM, Tuist and plain Xcode projects.
 
 This project is very much inspired by [cargo-outdated](https://github.com/kbknapp/cargo-outdated).
 
@@ -74,6 +74,21 @@ forks:
 `fork` is matched against the URL in your `Package.resolved` (SSH/HTTPS and a `.git` suffix are treated the same); `upstream` is the repository whose tags then determine the latest version. The dependency is still listed under its own fork URL, only the version comparison, including the base/latest tags for branch and revision pins, uses the upstream.
 
 Use `--config` / `-c` to point at a config file elsewhere.
+
+### Package registry dependencies
+
+SwiftPM also supports dependencies from a [package registry](https://github.com/apple/swift-evolution/blob/main/proposals/0292-package-registry-service.md), declared with `.package(id: "scope.name", …)` rather than a git URL. These have no repository to check, so `swift-outdated` instead queries the registry's list-releases API to determine the latest version. The dependency is shown with a `registry:` marker in place of a URL:
+
+```
+$ swift outdated
+| Package         | Current | Latest | URL                       |
+|-----------------|---------|--------|---------------------------|
+| mona.linkedlist | 1.1.0   | 2.0.0  | registry: mona.linkedlist |
+```
+
+The registry to query is resolved from SwiftPM's `registries.json` (a project-local `.swiftpm/configuration/registries.json` takes precedence over the user-level `~/.swiftpm/configuration/registries.json`), honoring both the `[default]` registry and any scope-specific override. When no registry is configured or it can't be reached, the dependency is still listed with its `registry:` marker but its latest version is left unknown.
+
+> **Note:** Automatic updates (`--update`) are not yet supported for registry dependencies.
 
 ### Branch and revision pins
 
