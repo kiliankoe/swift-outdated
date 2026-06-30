@@ -200,6 +200,87 @@ struct VersionCollectionTests {
         #expect(packageCollectionMajorOnly.outdatedPackages.first?.latestVersion == Version(3, 0, 0))
     }
 
+    @Test("directDependencyURLs filters out transitive packages")
+    func directDependencyURLsFiltersTransitive() async {
+        let mockProvider = MockGitRemoteProvider()
+        let directURL = "https://github.com/example/direct.git"
+        let transitiveURL = "https://github.com/example/transitive.git"
+        for url in [directURL, transitiveURL] {
+            mockProvider.setTagRefsResponse(for: url, response: """
+            d945937a1b87e8b2bafb749c8ec53610f337c403	refs/tags/1.0.0
+            626c3d4b6b55354b4af3aa309f998fae9b31a3d9	refs/tags/2.0.0
+            """)
+        }
+        let packages = [directURL, transitiveURL].map {
+            SwiftPackage(package: $0, repositoryURL: $0, revision: nil, version: Version(1, 0, 0), gitProvider: mockProvider)
+        }
+
+        let filtered = await SwiftPackage.collectVersions(
+            for: packages,
+            ignoringPrerelease: false,
+            onlyMajorUpdates: false,
+            directDependencyURLs: [normalizeRepositoryURL(directURL)]
+        )
+        #expect(filtered.outdatedPackages.map(\.url) == [directURL])
+
+        // A nil set must report both, matching the pre-filter behavior.
+        let unfiltered = await SwiftPackage.collectVersions(
+            for: packages,
+            ignoringPrerelease: false,
+            onlyMajorUpdates: false,
+            directDependencyURLs: nil
+        )
+        #expect(unfiltered.outdatedPackages.count == 2)
+    }
+
+    @Test("A filtered-out transitive ref pin does not resurface as ignored")
+    func transitiveRefPinIsDroppedNotIgnored() async {
+        let mockProvider = MockGitRemoteProvider()
+        let directURL = "https://github.com/example/direct.git"
+        mockProvider.setTagRefsResponse(for: directURL, response: """
+        d945937a1b87e8b2bafb749c8ec53610f337c403	refs/tags/1.0.0
+        626c3d4b6b55354b4af3aa309f998fae9b31a3d9	refs/tags/2.0.0
+        """)
+        let direct = SwiftPackage(package: directURL, repositoryURL: directURL, revision: nil, version: Version(1, 0, 0), gitProvider: mockProvider)
+        let transitiveRefPin = SwiftPackage(
+            package: "TransitiveRefPin",
+            repositoryURL: "https://github.com/example/transitive-ref.git",
+            revision: "9f39744e025c7d377987f30b03770805dcb0bcd1",
+            version: nil,
+            gitProvider: mockProvider
+        )
+
+        let collection = await SwiftPackage.collectVersions(
+            for: [direct, transitiveRefPin],
+            ignoringPrerelease: false,
+            onlyMajorUpdates: false,
+            directDependencyURLs: [normalizeRepositoryURL(directURL)]
+        )
+        // The transitive ref pin is dropped outright, not surfaced as ignored.
+        #expect(collection.ignoredPackages.isEmpty)
+        #expect(collection.outdatedPackages.map(\.url) == [directURL])
+    }
+
+    @Test("Direct set matching no pins falls back to reporting all")
+    func directSetMatchingNothingReportsAll() async {
+        let mockProvider = MockGitRemoteProvider()
+        let url = "https://github.com/example/repo.git"
+        mockProvider.setTagRefsResponse(for: url, response: """
+        d945937a1b87e8b2bafb749c8ec53610f337c403	refs/tags/1.0.0
+        626c3d4b6b55354b4af3aa309f998fae9b31a3d9	refs/tags/2.0.0
+        """)
+        let package = SwiftPackage(package: "repo", repositoryURL: url, revision: nil, version: Version(1, 0, 0), gitProvider: mockProvider)
+
+        // Mimics a Tuist/local-package layout: pins exist but none match the determined set.
+        let collection = await SwiftPackage.collectVersions(
+            for: [package],
+            ignoringPrerelease: false,
+            onlyMajorUpdates: false,
+            directDependencyURLs: ["github.com/unrelated/elsewhere"]
+        )
+        #expect(collection.outdatedPackages.map(\.url) == [url])
+    }
+
     @Test("Ref-pinned packages are ignored when no checkout is available")
     func refPinnedPackagesAreIgnoredWithoutCheckout() async {
         let mockProvider = MockGitRemoteProvider()
