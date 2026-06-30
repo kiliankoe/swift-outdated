@@ -50,7 +50,16 @@ Pass `-t` / `--include-transitive` to report transitive dependencies as well. If
 
 `swift-outdated` also allows listing all your dependencies alongside the ones that are not up to date.
 
-Run the application using `-u` or `--include-up-to-date` command line switch and it will print out current dependencies with their version.
+Run the application using `-u` or `--include-up-to-date` command line switch and every dependency is listed in the same table. Up-to-date packages show a `✓` in the `Latest` column, and pins without any available information show a `?`:
+
+```
+$ swift outdated -u
+| Package   | Current | Latest | URL                                    |
+|-----------|---------|--------|----------------------------------------|
+| rainbow   | 3.2.0   | 4.2.1  | https://github.com/onevcat/Rainbow.git |
+| swift-log | 1.14.0  | ✓      | https://github.com/apple/swift-log.git |
+| somepin   | abc1234 | ?      | https://github.com/example/somepin.git |
+```
 
 ### Branch and revision pins
 

@@ -22,7 +22,8 @@ extension PackageCollection {
     }
 
     public func output(format: OutputFormat, includeUpToDatePackages: Bool = false) {
-        guard !self.outdatedPackages.isEmpty || !self.ignoredPackages.isEmpty || !self.refPinnedPackages.isEmpty else { return }
+        guard !self.outdatedPackages.isEmpty || !self.ignoredPackages.isEmpty || !self.refPinnedPackages.isEmpty
+            || (includeUpToDatePackages && !self.upToDatePackages.isEmpty) else { return }
 
         switch format {
         case .xcode:
@@ -45,29 +46,32 @@ extension PackageCollection {
             let json = try! encoder.encode(self)
             print(String(data: json, encoding: .utf8)!)
         case .markdown:
-            // Branch/revision pins share the outdated table: their "Pinned" cell sits in the Current
-            // column. Behind pins show by default; all of them when including up-to-date packages.
+            // Everything folds into a single table. Branch/revision pins put their "Pinned" cell in
+            // the Current column; up-to-date and ignored rows are distinguished by the Latest column
+            // (a green check vs. a dim "?"). Behind pins show by default; with -u every package does.
             let refPins = includeUpToDatePackages ? refPinnedPackages : refPinnedPackages.filter { $0.isOutdated }
-            let title = includeUpToDatePackages ? "## Outdated packages" : nil
 
             if let securityResults = securityResults {
                 var rows = outdatedPackages.map { OutdatedPackageWithSecurity(base: $0, security: securityResults[$0.package]).tableValues }
                 rows += refPins.map { refPinSecurityRow($0) }
-                renderRows(title, headers: OutdatedPackageWithSecurity.columnHeaders, rows: rows)
+                if includeUpToDatePackages {
+                    rows += upToDatePackages.map { upToDateSecurityRow($0) }
+                    rows += ignoredPackages.map { ignoredSecurityRow($0) }
+                }
+                renderRows(nil, headers: OutdatedPackageWithSecurity.columnHeaders, rows: rows)
             } else {
                 var rows = outdatedPackages.map { $0.tableValues }
                 rows += refPins.map { $0.tableValues }
-                renderRows(title, headers: OutdatedPackage.columnHeaders, rows: rows)
+                if includeUpToDatePackages {
+                    rows += upToDatePackages.map { upToDateRow($0) }
+                    rows += ignoredPackages.map { ignoredRow($0) }
+                }
+                renderRows(nil, headers: OutdatedPackage.columnHeaders, rows: rows)
             }
 
-            if includeUpToDatePackages {
-                render("## Up to date packages", self.upToDatePackages)
-                render("## Ignored packages", self.ignoredPackages)
-            } else {
-                if !self.ignoredPackages.isEmpty {
-                    let ignoredString = self.ignoredPackages.map { $0.package }.joined(separator: ", ")
-                    print("Ignored because of revision or branch pins: \(ignoredString)")
-                }
+            if !includeUpToDatePackages, !self.ignoredPackages.isEmpty {
+                let ignoredString = self.ignoredPackages.map { $0.package }.joined(separator: ", ")
+                print("Ignored because of revision or branch pins: \(ignoredString)")
             }
         }
     }
@@ -112,9 +116,24 @@ extension PackageCollection {
         }
     }
 
-    private func render<T: TextTableRepresentable>(_ title: String?, _ objects: [T]) {
-        guard !objects.isEmpty else { return }
-        renderRows(title, headers: T.columnHeaders, rows: objects.map { $0.tableValues })
+    /// Up-to-date packages aren't behind any release, so the Latest cell shows a check rather than a version.
+    private func upToDateRow(_ pkg: SwiftPackage) -> [CustomStringConvertible] {
+        [pkg.package, pkg.version?.description ?? pkg.revision ?? "N/A", "✓".green, pkg.repositoryURL.blue]
+    }
+
+    /// Ignored pins couldn't be analyzed against a checkout, so the latest tag is unknown.
+    private func ignoredRow(_ pkg: SwiftPackage) -> [CustomStringConvertible] {
+        [pkg.package, pkg.version?.description ?? pkg.revision ?? "N/A", "?".dim, pkg.repositoryURL.blue]
+    }
+
+    /// Up-to-date packages aren't security-scanned, so the CVE/score cells are unknown.
+    private func upToDateSecurityRow(_ pkg: SwiftPackage) -> [CustomStringConvertible] {
+        [pkg.package, pkg.version?.description ?? pkg.revision ?? "N/A", "?".dim, "✓".green, "?".dim, "?".dim, pkg.repositoryURL.blue]
+    }
+
+    /// Ignored pins are neither analyzed nor security-scanned, so every derived cell is unknown.
+    private func ignoredSecurityRow(_ pkg: SwiftPackage) -> [CustomStringConvertible] {
+        [pkg.package, pkg.version?.description ?? pkg.revision ?? "N/A", "?".dim, "?".dim, "?".dim, "?".dim, pkg.repositoryURL.blue]
     }
 
     /// Ref pins aren't security-scanned, so the CVE/score cells are unknown.
