@@ -8,12 +8,20 @@ public struct OutdatedPackage {
     public let currentVersion: Version
     public let latestVersion: Version
     public let url: String
+    /// Registry identity (`scope.name`) for registry dependencies; nil for source-control ones.
+    public let registryIdentity: String?
 
-    public init(package: String, currentVersion: Version, latestVersion: Version, url: String) {
+    public init(package: String, currentVersion: Version, latestVersion: Version, url: String, registryIdentity: String? = nil) {
         self.package = package
         self.currentVersion = currentVersion
         self.latestVersion = latestVersion
         self.url = url
+        self.registryIdentity = registryIdentity
+    }
+
+    /// The locator shown in output: a `registry:` marker for registry packages, otherwise the git URL.
+    public var displayURL: String {
+        registryIdentity.map { "registry: \($0)" } ?? url
     }
 }
 
@@ -38,7 +46,7 @@ extension OutdatedPackage: TextTableRepresentable {
             self.package,
             self.currentVersion.description,
             self.coloredLatestVersion,
-            self.url.blue
+            self.displayURL.blue
         ]
     }
 

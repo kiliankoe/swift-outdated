@@ -28,8 +28,10 @@ private struct DumpedManifest: Decodable {
     let dependencies: [Dependency]
 
     struct Dependency: Decodable {
-        // Only source-control deps carry a remote URL; fileSystem/registry deps lack `sourceControl`.
+        // Source-control deps carry a remote URL under `sourceControl`; registry deps (`.package(id:)`)
+        // carry an identity under `registry` instead. fileSystem deps have neither.
         let sourceControl: [SourceControl]?
+        let registry: [Registry]?
     }
     struct SourceControl: Decodable {
         let identity: String?
@@ -40,6 +42,9 @@ private struct DumpedManifest: Decodable {
     }
     struct Remote: Decodable {
         let urlString: String?
+    }
+    struct Registry: Decodable {
+        let identity: String?
     }
 }
 
@@ -84,8 +89,10 @@ public struct DirectDependencyResolver: Sendable {
 
     // MARK: - Pure parsers
 
-    /// Collect normalized remote URLs from `swift package dump-package` JSON.
-    /// Returns `nil` if the JSON can't be decoded at all.
+    /// Collect direct-dependency identifiers from `swift package dump-package` JSON: normalized
+    /// remote URLs for source-control deps and lowercased identities for registry deps, folded into
+    /// one set (registry identities like `mona.linkedlist` never collide with normalized URLs like
+    /// `github.com/…`). Returns `nil` if the JSON can't be decoded at all.
     static func parseDumpPackageURLs(_ data: Data) -> Set<String>? {
         guard let manifest = try? JSONDecoder().decode(DumpedManifest.self, from: data) else {
             return nil
@@ -94,7 +101,12 @@ public struct DirectDependencyResolver: Sendable {
             .compactMap(\.sourceControl).flatMap { $0 }
             .compactMap(\.location?.remote).flatMap { $0 }
             .compactMap(\.urlString)
-        return Set(urls.map(normalizeRepositoryURL))
+            .map(normalizeRepositoryURL)
+        let registryIdentities = manifest.dependencies
+            .compactMap(\.registry).flatMap { $0 }
+            .compactMap(\.identity)
+            .map { $0.lowercased() }
+        return Set(urls).union(registryIdentities)
     }
 
     /// Collect normalized remote URLs from a project's `project.pbxproj`. `repositoryURL` only
