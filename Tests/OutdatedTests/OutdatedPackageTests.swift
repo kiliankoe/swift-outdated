@@ -51,4 +51,22 @@ struct OutdatedPackageTests {
         #expect(json["latestVersion"] as? String == "2.0.0")
         #expect(json["url"] as? String == "https://github.com/example/encodable.git")
     }
+
+    @Test("Registry package display and encoding (issue #42)")
+    func registryPackageDisplay() {
+        let package = OutdatedPackage(
+            package: "mona.linkedlist",
+            currentVersion: Version(1, 0, 0),
+            latestVersion: Version(2, 0, 0),
+            url: "",
+            registryIdentity: "mona.linkedlist"
+        )
+
+        #expect(package.displayURL == "registry: mona.linkedlist")
+
+        let json = try! JSONSerialization.jsonObject(with: try! JSONEncoder().encode(package)) as! [String: Any]
+        // The raw url and the registry identity stay distinct fields; the `registry:` prefix is display-only.
+        #expect(json["registryIdentity"] as? String == "mona.linkedlist")
+        #expect(json["url"] as? String == "")
+    }
 }

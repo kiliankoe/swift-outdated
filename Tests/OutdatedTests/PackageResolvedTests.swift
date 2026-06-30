@@ -63,6 +63,56 @@ struct PackageResolvedTests {
         #expect(argumentParser?.hasResolvedVersion == false)
     }
     
+    @Test("Package.resolved v2 registry pin parsing (issue #42)")
+    func packageResolvedV2RegistryPin() throws {
+        let tempFolder = try Folder.temporary.createSubfolder(named: "swift-outdated-tests-\(UUID().uuidString)")
+        defer { try? tempFolder.delete() }
+
+        // A registry pin carries an identity and version but no `location`; it must decode alongside
+        // a source-control pin rather than failing the whole file (which previously yielded zero packages).
+        let resolvedContent = """
+        {
+          "pins" : [
+            {
+              "identity" : "mona.linkedlist",
+              "kind" : "registry",
+              "state" : {
+                "version" : "1.0.0"
+              }
+            },
+            {
+              "identity" : "rainbow",
+              "kind" : "remoteSourceControl",
+              "location" : "https://github.com/onevcat/Rainbow.git",
+              "state" : {
+                "revision" : "626c3d4b6b55354b4af3aa309f998fae9b31a3d9",
+                "version" : "3.2.0"
+              }
+            }
+          ],
+          "version" : 2
+        }
+        """
+
+        let resolvedFile = try tempFolder.createFile(named: "Package.resolved")
+        try resolvedFile.write(resolvedContent)
+
+        let packages = try SwiftPackage.currentPackagePins(in: tempFolder)
+
+        #expect(packages.count == 2)
+
+        let registry = packages.first { $0.package == "mona.linkedlist" }
+        #expect(registry?.registryIdentity == "mona.linkedlist")
+        #expect(registry?.repositoryURL == "")
+        #expect(registry?.version == Version(1, 0, 0))
+        #expect(registry?.hasResolvedVersion == true)
+        #expect(registry?.displayURL == "registry: mona.linkedlist")
+
+        let rainbow = packages.first { $0.package == "rainbow" }
+        #expect(rainbow?.registryIdentity == nil)
+        #expect(rainbow?.displayURL == "https://github.com/onevcat/Rainbow.git")
+    }
+
     @Test("Package.resolved v1 parsing")
     func packageResolvedV1Parsing() throws {
         let tempFolder = try Folder.temporary.createSubfolder(named: "swift-outdated-tests-\(UUID().uuidString)")
