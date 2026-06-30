@@ -23,6 +23,7 @@ let package = Package(
         .package(url: "https://github.com/johnsundell/Files.git", from: "4.0.0"),
         .package(url: "https://github.com/scottrhoyt/SwiftyTextTable.git", from: "0.9.0"),
         .package(url: "https://github.com/onevcat/Rainbow.git", from: "3.2.0"),
+        .package(url: "https://github.com/jpsim/Yams.git", from: "6.0.0"),
     ],
     targets: [
         .target(
@@ -34,6 +35,7 @@ let package = Package(
                 "ShellOut",
                 "SwiftyTextTable",
                 "Version",
+                "Yams",
             ]
         ),
         .executableTarget(

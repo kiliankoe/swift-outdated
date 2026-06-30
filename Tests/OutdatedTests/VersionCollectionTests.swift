@@ -281,6 +281,41 @@ struct VersionCollectionTests {
         #expect(collection.outdatedPackages.map(\.url) == [url])
     }
 
+    @Test("A configured upstream is queried instead of the fork (issue #44)")
+    func upstreamURLRedirectsVersionLookup() async {
+        let mockProvider = MockGitRemoteProvider()
+        let forkURL = "https://github.com/mycompany/SomeLib.git"
+        let upstreamURL = "https://github.com/original/SomeLib.git"
+        // The fork has no new tags; the upstream has shipped 2.0.0.
+        mockProvider.setTagRefsResponse(for: forkURL, response: """
+        d945937a1b87e8b2bafb749c8ec53610f337c403	refs/tags/1.0.0
+        """)
+        mockProvider.setTagRefsResponse(for: upstreamURL, response: """
+        d945937a1b87e8b2bafb749c8ec53610f337c403	refs/tags/1.0.0
+        626c3d4b6b55354b4af3aa309f998fae9b31a3d9	refs/tags/2.0.0
+        """)
+        let fork = SwiftPackage(
+            package: "SomeLib",
+            repositoryURL: forkURL,
+            revision: nil,
+            version: Version(1, 0, 0),
+            upstreamURL: upstreamURL,
+            gitProvider: mockProvider
+        )
+
+        let collection = await SwiftPackage.collectVersions(
+            for: [fork],
+            ignoringPrerelease: false,
+            onlyMajorUpdates: false
+        )
+
+        // Outdatedness reflects the upstream's 2.0.0, not the fork's stale 1.0.0.
+        #expect(collection.outdatedPackages.count == 1)
+        #expect(collection.outdatedPackages.first?.latestVersion == Version(2, 0, 0))
+        // The reported URL stays the fork — the actual dependency.
+        #expect(collection.outdatedPackages.first?.url == forkURL)
+    }
+
     @Test("Ref-pinned packages are ignored when no checkout is available")
     func refPinnedPackagesAreIgnoredWithoutCheckout() async {
         let mockProvider = MockGitRemoteProvider()
