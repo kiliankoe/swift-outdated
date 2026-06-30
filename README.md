@@ -2,11 +2,11 @@
 
 A swift subcommand for checking if your dependencies have an update available. This especially applies to updates outside of your version requirements.
 
-Heavily inspired by [cargo-outdated](https://github.com/kbknapp/cargo-outdated).
-
 Calling `swift package update` will only update to the latest available requirements inside your specified version requirements, which totally makes sense, but you might miss that there's a new major version available if you don't check the dependency's repository regularly.
 
-This tool aims to help with that by allowing to quickly check if any requirements might be outdated, it does this by checking the remote git tags of your dependencies to see if something outside of your version requirements is available.
+This tool aims to help with that by allowing you to quickly check the remote git tags of your dependencies to see if something outside of your version requirements is available. It also aims to be smart regarding dependencies that are pinned to a branch or a specific revision, not checking transitive dependencies, checking for known security vulnerabilities, and supporting SwiftPM, Tuist and plain Xcode projects.
+
+This project is very much inspired by [cargo-outdated](https://github.com/kbknapp/cargo-outdated).
 
 ## Installing
 
@@ -50,11 +50,11 @@ Pass `-t` / `--include-transitive` to report transitive dependencies as well. If
 
 `swift-outdated` also allows listing all your dependencies alongside the ones that are not up to date.
 
-Run the application using `-u` or `--include-up-to-date` command line switch and it will print out current dependencies with their version and ignored ones with their revisions.
+Run the application using `-u` or `--include-up-to-date` command line switch and it will print out current dependencies with their version.
 
 ### Branch and revision pins
 
-Dependencies pinned to a branch or a specific revision have no resolved version, so there's nothing to compare against a list of remote tags. `swift-outdated` instead analyzes them against the local checkout that SwiftPM and Xcode already create, showing the tag the pinned commit sits at and the latest available version — right alongside your version-pinned dependencies in the same table:
+Dependencies pinned to a branch or a specific revision have no resolved version, so there's nothing to compare against a list of remote tags. `swift-outdated` instead analyzes them against the local checkout that SwiftPM and Xcode already create, showing the tag the pinned commit sits at and the latest available version:
 
 ```
 $ swift outdated
@@ -64,9 +64,9 @@ $ swift outdated
 | rainbow   | 626c3d4 (v3.2.0) | 4.2.1  | https://github.com/onevcat/Rainbow.git |
 ```
 
-For a ref pin, the `Current` column shows the branch (if any), the short revision, and the closest tag at or before that commit (`git describe`); `Latest` is the newest tag available upstream. This makes it obvious when a pin can move back to a normal tagged release — for example because a fix you were tracking on a branch has since shipped.
+For a ref pin, the `Current` column shows the branch (if any), the short revision, and the closest tag at or before that commit (`git describe`); `Latest` is the newest tag available upstream. This makes it obvious when a pin can move back to a normal tagged release, for example because a fix you were tracking on a branch has since shipped.
 
-This works automatically when a checkout is present. `swift-outdated` looks in `.build/checkouts` (run `swift build` or `swift package resolve` first) and in an Xcode `SourcePackages/checkouts` directory; use `--checkouts-path` to point it elsewhere. Pins without an available checkout keep the previous behavior and are listed as ignored. The analysis is also included in `--format json` output and emitted as warnings in Xcode.
+This works automatically when a checkout is present. `swift-outdated` looks in `.build/checkouts` (run `swift build` or `swift package resolve` first) and in an Xcode `SourcePackages/checkouts` directory; use `--checkouts-path` to point it elsewhere. Pins without an available checkout keep the previous behavior and are listed as ignored.
 
 ### Security checks
 
@@ -82,10 +82,10 @@ $ swift outdated --check-security
 
 Each package is checked against two sources:
 
-- **[OSV](https://osv.dev)** — known CVEs for a specific version. Reported per version, so you can see when updating clears a known vulnerability. `✓ No CVEs` means no known advisories, `?` means the status couldn't be determined.
-- **[OpenSSF Scorecard](https://securityscorecards.dev)** — repository security posture score (0–10), covering pinned dependencies, signed releases, active maintenance, and more. This rates the repository, not a version, so it's a single `Score` column; scores below 5 are flagged.
+- [OSV](https://osv.dev): known CVEs for a specific version. Reported per version, so you can see when updating clears a known vulnerability. `✓ No CVEs` means no known advisories, `?` means the status couldn't be determined.
+- [OpenSSF Scorecard](https://securityscorecards.dev): repository security posture score (0–10), covering pinned dependencies, signed releases, active maintenance, and more. This rates the repository, not a version, so it's a single `Score` column; scores below 5 are flagged.
 
-Both APIs are free and require no authentication. Checks run concurrently and do not affect the default output when the flag is omitted. The results are also included in `--format json` output.
+Both APIs are free and require no authentication.
 
 > **Note:** Scorecard is GitHub-only; packages hosted elsewhere will show `?` for the score. Full supply chain attack detection (malicious code injection, typosquatting) is not yet available for Swift via any public free API.
 
