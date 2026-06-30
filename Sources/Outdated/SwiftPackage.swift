@@ -14,22 +14,26 @@ public struct SwiftPackage: Sendable {
     /// The branch a ref pin tracks, when pinned via `.branch(_:)` rather than a bare revision.
     public let branch: String?
     public let version: Version?
+    /// When set (via the fork config), outdatedness is checked against this repository's tags
+    /// instead of `repositoryURL`'s — for dependencies that are forks of an upstream project.
+    public let upstreamURL: String?
 
     private let gitProvider: GitRemoteProvider
 
-    public init(package: String, repositoryURL: String, revision: String?, branch: String? = nil, version: Version?, gitProvider: GitRemoteProvider = ShellGitRemoteProvider()) {
+    public init(package: String, repositoryURL: String, revision: String?, branch: String? = nil, version: Version?, upstreamURL: String? = nil, gitProvider: GitRemoteProvider = ShellGitRemoteProvider()) {
         self.package = package
         self.repositoryURL = repositoryURL
         self.revision = revision
         self.branch = branch
         self.version = version
+        self.upstreamURL = upstreamURL
         self.gitProvider = gitProvider
     }
 }
 
 extension SwiftPackage: Encodable {
     enum CodingKeys: String, CodingKey {
-        case package, repositoryURL, revision, branch, version
+        case package, repositoryURL, revision, branch, version, upstreamURL
     }
 }
 
@@ -46,6 +50,7 @@ extension SwiftPackage: Hashable {
         hasher.combine(revision)
         hasher.combine(branch)
         hasher.combine(version)
+        hasher.combine(upstreamURL)
     }
 
     public static func == (lhs: SwiftPackage, rhs: SwiftPackage) -> Bool {
@@ -53,7 +58,8 @@ extension SwiftPackage: Hashable {
                lhs.repositoryURL == rhs.repositoryURL &&
                lhs.revision == rhs.revision &&
                lhs.branch == rhs.branch &&
-               lhs.version == rhs.version
+               lhs.version == rhs.version &&
+               lhs.upstreamURL == rhs.upstreamURL
     }
 }
 
@@ -64,8 +70,10 @@ extension SwiftPackage {
     
     public func availableVersions() -> [Version] {
         do {
-            log.trace("Running git ls-remote for \(self.package).")
-            let lsRemote = try gitProvider.getRemoteTags(repositoryURL: self.repositoryURL)
+            // Forks often lag their upstream's tags, so check the upstream when one is configured.
+            let versionSource = self.upstreamURL ?? self.repositoryURL
+            log.trace("Running git ls-remote for \(self.package) against \(versionSource).")
+            let lsRemote = try gitProvider.getRemoteTags(repositoryURL: versionSource)
             return lsRemote
                 .split(separator: "\n")
                 .map {
@@ -91,7 +99,7 @@ extension SwiftPackage {
         }
     }
     
-    public static func currentPackagePins(in folder: Folder) throws -> [Self] {
+    public static func currentPackagePins(in folder: Folder, forkUpstreams: [String: String] = [:]) throws -> [Self] {
         let file: File = try {
             let possibleRootResolvedPaths = [
                 "Package.resolved",
@@ -145,7 +153,8 @@ extension SwiftPackage {
                     repositoryURL: $0.repositoryURL,
                     revision: $0.state.revision,
                     branch: $0.state.branch,
-                    version: Version($0.state.version ?? "")
+                    version: Version($0.state.version ?? ""),
+                    upstreamURL: forkUpstreams[normalizeRepositoryURL($0.repositoryURL)]
                 )
             }
         } else if let resolvedV2 = try? JSONDecoder().decode(ResolvedV2.self, from: data) {
@@ -155,7 +164,8 @@ extension SwiftPackage {
                     repositoryURL: $0.location,
                     revision: $0.state.revision,
                     branch: $0.state.branch,
-                    version: Version($0.state.version ?? "")
+                    version: Version($0.state.version ?? ""),
+                    upstreamURL: forkUpstreams[normalizeRepositoryURL($0.location)]
                 )
             }
         } else {

@@ -48,6 +48,9 @@ public struct SwiftOutdated: AsyncParsableCommand, Sendable {
     @Option(name: .long, help: "Path to a package checkouts directory (overrides auto-detection of .build/checkouts and SourcePackages/checkouts).")
     var checkoutsPath: String?
 
+    @Option(name: [.customShort("c"), .long], help: "Path to a config file (overrides auto-detection of .swift-outdated.yml in the project directory).")
+    var config: String?
+
     public static let configuration = CommandConfiguration(
         commandName: "swift-outdated",
         abstract: "Check for outdated dependencies.",
@@ -81,7 +84,11 @@ public struct SwiftOutdated: AsyncParsableCommand, Sendable {
     public func run() async throws {
         setupLogging()
         let folder = try Folder(path: path)
-        let pins = try SwiftPackage.currentPackagePins(in: folder)
+        let forkUpstreams = OutdatedConfig.load(in: folder, explicitPath: config).forkUpstreamMap()
+        let pins = try SwiftPackage.currentPackagePins(in: folder, forkUpstreams: forkUpstreams)
+        for pin in pins where pin.upstreamURL != nil {
+            log.info("Following upstream \(pin.upstreamURL!) for \(pin.package).")
+        }
 
         if let update = update {
             try await runUpdate(scope: update.libScope, folder: folder, pins: pins)
