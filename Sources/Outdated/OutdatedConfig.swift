@@ -18,6 +18,15 @@ public struct OutdatedConfig: Decodable {
         self.forks = forks
     }
 
+    private enum CodingKeys: String, CodingKey {
+        case forks
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.forks = try container.decodeIfPresent([ForkMapping].self, forKey: .forks) ?? []
+    }
+
     public static func parse(_ yaml: String) throws -> OutdatedConfig {
         try YAMLDecoder().decode(OutdatedConfig.self, from: yaml)
     }
