@@ -30,6 +30,9 @@ public struct SwiftOutdated: AsyncParsableCommand, Sendable {
     @Flag(name: [ .customShort("u"), .long], help: "Include up to date packages")
     var includeUpToDate: Bool = false
 
+    @Flag(name: [.customShort("t"), .long], help: "Include transitive (dependency-of-dependency) packages; by default only direct dependencies are reported.")
+    var includeTransitive: Bool = false
+
     @Option(name: .long, help: "Update outdated packages (patch, minor, major).")
     var update: CLIUpdateScope?
 
@@ -50,6 +53,11 @@ public struct SwiftOutdated: AsyncParsableCommand, Sendable {
         abstract: "Check for outdated dependencies.",
         discussion: """
         swift-outdated will output an overview of your outdated dependencies found in your Package.resolved file.
+
+        By default only your project's direct dependencies are reported. Transitive dependencies (the
+        dependencies of your dependencies) are determined from the manifest (via swift package dump-package
+        for SwiftPM/Tuist, or the .pbxproj for Xcode projects) and filtered out. Pass --include-transitive
+        to report them as well. When the direct dependencies cannot be determined, every package is shown.
 
         Dependencies pinned to a branch or revision are analyzed against their local checkout (from
         .build/checkouts or an Xcode SourcePackages/checkouts directory) to show the tag they sit at and
@@ -79,7 +87,10 @@ public struct SwiftOutdated: AsyncParsableCommand, Sendable {
             try await runUpdate(scope: update.libScope, folder: folder, pins: pins)
         } else {
             let checkoutLocator = CheckoutLocator(projectFolder: folder, explicitPath: checkoutsPath)
-            let packages = await SwiftPackage.collectVersions(for: pins, ignoringPrerelease: ignorePrerelease, onlyMajorUpdates: onlyMajor, checkSecurity: checkSecurity, checkoutLocator: checkoutLocator)
+            // Default to direct dependencies only. A nil set (couldn't determine, or --include-transitive)
+            // means no filtering, falling back to reporting every pin.
+            let directURLs = includeTransitive ? nil : DirectDependencyResolver().directDependencyURLs(in: folder)
+            let packages = await SwiftPackage.collectVersions(for: pins, ignoringPrerelease: ignorePrerelease, onlyMajorUpdates: onlyMajor, checkSecurity: checkSecurity, checkoutLocator: checkoutLocator, directDependencyURLs: directURLs)
             packages.output(format: isRunningInXcode ? .xcode : format.libFormat, includeUpToDatePackages: includeUpToDate)
         }
     }

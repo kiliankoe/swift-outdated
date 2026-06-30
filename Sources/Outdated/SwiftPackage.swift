@@ -186,7 +186,17 @@ extension SwiftPackage {
         }
     }
 
-    public static func collectVersions(for packages: [SwiftPackage], ignoringPrerelease: Bool, onlyMajorUpdates: Bool, checkSecurity: Bool = false, checkoutLocator: CheckoutLocator? = nil) async -> PackageCollection {
+    public static func collectVersions(for allPackages: [SwiftPackage], ignoringPrerelease: Bool, onlyMajorUpdates: Bool, checkSecurity: Bool = false, checkoutLocator: CheckoutLocator? = nil, directDependencyURLs: Set<String>? = nil) async -> PackageCollection {
+        // Filter before any analysis so transitive pins are dropped uniformly — a transitive ref
+        // pin should disappear entirely, not resurface in the "ignored" bucket. A nil set means
+        // direct deps couldn't be determined, so keep every package.
+        let packages = directDependencyURLs.map { urls in
+            allPackages.filter { urls.contains(normalizeRepositoryURL($0.repositoryURL)) }
+        } ?? allPackages
+        if directDependencyURLs != nil {
+            log.info("Reporting \(packages.count) of \(allPackages.count) packages (direct dependencies only).")
+        }
+
         log.info("Collecting versions for \(packages.map { $0.package }.joined(separator: ", ")).")
         let versions = await fetchAvailableVersions(for: packages)
 
