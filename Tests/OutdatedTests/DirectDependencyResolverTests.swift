@@ -1,5 +1,6 @@
 import Testing
 import Foundation
+import Version
 @testable import Outdated
 
 @Suite("DirectDependencyResolver Tests")
@@ -48,6 +49,35 @@ struct DirectDependencyResolverTests {
     @Test("Malformed dump-package JSON yields nil, not an empty set")
     func malformedJSONYieldsNil() {
         #expect(DirectDependencyResolver.parseDumpPackageURLs(Data("not json".utf8)) == nil)
+    }
+
+    @Test("Registry dependencies are collected by lowercased identity (issue #42)")
+    func collectsRegistryIdentities() {
+        let json = """
+        {
+          "dependencies": [
+            {"sourceControl": [{"identity": "rainbow",
+              "location": {"remote": [{"urlString": "https://github.com/onevcat/Rainbow.git"}]}}]},
+            {"registry": [{"identity": "Mona.LinkedList"}]}
+          ]
+        }
+        """
+        let ids = DirectDependencyResolver.parseDumpPackageURLs(Data(json.utf8))
+        #expect(ids == ["github.com/onevcat/rainbow", "mona.linkedlist"])
+    }
+
+    @Test("filterToDirectDependencies matches registry packages by identity")
+    func filtersRegistryByIdentity() {
+        let registry = SwiftPackage(package: "mona.linkedlist", repositoryURL: "", revision: nil,
+                                    version: Version(1, 0, 0), registryIdentity: "mona.linkedlist")
+        let other = SwiftPackage(package: "example.priorityqueue", repositoryURL: "", revision: nil,
+                                 version: Version(1, 0, 0), registryIdentity: "example.priorityqueue")
+
+        let filtered = SwiftPackage.filterToDirectDependencies(
+            [registry, other],
+            directDependencyURLs: ["mona.linkedlist"]
+        )
+        #expect(filtered.map(\.package) == ["mona.linkedlist"])
     }
 
     // MARK: - project.pbxproj

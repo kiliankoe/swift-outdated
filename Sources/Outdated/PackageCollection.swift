@@ -28,7 +28,7 @@ extension PackageCollection {
         switch format {
         case .xcode:
             self.outdatedPackages.forEach {
-                var warning = "warning: Dependency \"\($0.package)\" is outdated (\($0.currentVersion) < \($0.latestVersion)) → \($0.url)"
+                var warning = "warning: Dependency \"\($0.package)\" is outdated (\($0.currentVersion) < \($0.latestVersion)) → \($0.displayURL)"
                 if case .vulnerable(let count, _)? = securityResults?[$0.package]?.currentOSV {
                     warning += " — \(count) known CVE\(count > 1 ? "s" : "")"
                 }
@@ -90,7 +90,7 @@ extension PackageCollection {
                 base.coloredLatestVersion,
                 SecurityLabel.osv(security?.latestOSV),
                 SecurityLabel.score(security?.scorecardScore),
-                base.url.blue
+                base.displayURL.blue
             ]
         }
     }
@@ -118,22 +118,22 @@ extension PackageCollection {
 
     /// Up-to-date packages aren't behind any release, so the Latest cell shows a check rather than a version.
     private func upToDateRow(_ pkg: SwiftPackage) -> [CustomStringConvertible] {
-        [pkg.package, pkg.version?.description ?? pkg.revision ?? "N/A", "✓".green, pkg.repositoryURL.blue]
+        [pkg.package, pkg.version?.description ?? pkg.revision ?? "N/A", "✓".green, pkg.displayURL.blue]
     }
 
     /// Ignored pins couldn't be analyzed against a checkout, so the latest tag is unknown.
     private func ignoredRow(_ pkg: SwiftPackage) -> [CustomStringConvertible] {
-        [pkg.package, pkg.version?.description ?? pkg.revision ?? "N/A", "?".dim, pkg.repositoryURL.blue]
+        [pkg.package, pkg.version?.description ?? pkg.revision ?? "N/A", "?".dim, pkg.displayURL.blue]
     }
 
     /// Up-to-date packages aren't security-scanned, so the CVE/score cells are unknown.
     private func upToDateSecurityRow(_ pkg: SwiftPackage) -> [CustomStringConvertible] {
-        [pkg.package, pkg.version?.description ?? pkg.revision ?? "N/A", "?".dim, "✓".green, "?".dim, "?".dim, pkg.repositoryURL.blue]
+        [pkg.package, pkg.version?.description ?? pkg.revision ?? "N/A", "?".dim, "✓".green, "?".dim, "?".dim, pkg.displayURL.blue]
     }
 
     /// Ignored pins are neither analyzed nor security-scanned, so every derived cell is unknown.
     private func ignoredSecurityRow(_ pkg: SwiftPackage) -> [CustomStringConvertible] {
-        [pkg.package, pkg.version?.description ?? pkg.revision ?? "N/A", "?".dim, "?".dim, "?".dim, "?".dim, pkg.repositoryURL.blue]
+        [pkg.package, pkg.version?.description ?? pkg.revision ?? "N/A", "?".dim, "?".dim, "?".dim, "?".dim, pkg.displayURL.blue]
     }
 
     /// Ref pins aren't security-scanned, so the CVE/score cells are unknown.

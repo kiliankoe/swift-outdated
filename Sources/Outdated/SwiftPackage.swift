@@ -17,23 +17,35 @@ public struct SwiftPackage: Sendable {
     /// When set (via the fork config), outdatedness is checked against this repository's tags
     /// instead of `repositoryURL`'s — for dependencies that are forks of an upstream project.
     public let upstreamURL: String?
+    /// The registry identity (`scope.name`) when this is a SwiftPM registry dependency rather than a
+    /// source-control one. Registry packages have no git URL, so `repositoryURL` is empty for them and
+    /// versions are resolved against the registry instead.
+    public let registryIdentity: String?
 
     private let gitProvider: GitRemoteProvider
+    private let registryProvider: RegistryProvider
 
-    public init(package: String, repositoryURL: String, revision: String?, branch: String? = nil, version: Version?, upstreamURL: String? = nil, gitProvider: GitRemoteProvider = ShellGitRemoteProvider()) {
+    public init(package: String, repositoryURL: String, revision: String?, branch: String? = nil, version: Version?, upstreamURL: String? = nil, registryIdentity: String? = nil, gitProvider: GitRemoteProvider = ShellGitRemoteProvider(), registryProvider: RegistryProvider = HTTPRegistryProvider()) {
         self.package = package
         self.repositoryURL = repositoryURL
         self.revision = revision
         self.branch = branch
         self.version = version
         self.upstreamURL = upstreamURL
+        self.registryIdentity = registryIdentity
         self.gitProvider = gitProvider
+        self.registryProvider = registryProvider
+    }
+
+    /// The locator shown in output: a `registry:` marker for registry packages, otherwise the git URL.
+    public var displayURL: String {
+        registryIdentity.map { "registry: \($0)" } ?? repositoryURL
     }
 }
 
 extension SwiftPackage: Encodable {
     enum CodingKeys: String, CodingKey {
-        case package, repositoryURL, revision, branch, version, upstreamURL
+        case package, repositoryURL, revision, branch, version, upstreamURL, registryIdentity
     }
 }
 
@@ -51,6 +63,7 @@ extension SwiftPackage: Hashable {
         hasher.combine(branch)
         hasher.combine(version)
         hasher.combine(upstreamURL)
+        hasher.combine(registryIdentity)
     }
 
     public static func == (lhs: SwiftPackage, rhs: SwiftPackage) -> Bool {
@@ -59,7 +72,8 @@ extension SwiftPackage: Hashable {
                lhs.revision == rhs.revision &&
                lhs.branch == rhs.branch &&
                lhs.version == rhs.version &&
-               lhs.upstreamURL == rhs.upstreamURL
+               lhs.upstreamURL == rhs.upstreamURL &&
+               lhs.registryIdentity == rhs.registryIdentity
     }
 }
 
@@ -69,6 +83,16 @@ extension SwiftPackage {
     }
     
     public func availableVersions() -> [Version] {
+        if let registryIdentity = self.registryIdentity {
+            do {
+                let releases = try registryProvider.listReleases(identity: registryIdentity)
+                return Self.parseRegistryReleases(releases)
+            } catch {
+                log.error("Error fetching registry releases for \(package): \(error)")
+                return []
+            }
+        }
+
         do {
             // Forks often lag their upstream's tags, so check the upstream when one is configured.
             let versionSource = self.upstreamURL ?? self.repositoryURL
@@ -98,7 +122,24 @@ extension SwiftPackage {
             return []
         }
     }
-    
+
+    /// Parses a registry "list package releases" response into sorted versions. The version strings
+    /// are the keys of the `releases` object; entries marked with a `problem` (withdrawn/unavailable)
+    /// are skipped so they can't be reported as the latest.
+    static func parseRegistryReleases(_ data: Data) -> [Version] {
+        struct Releases: Decodable {
+            let releases: [String: Release]
+            struct Release: Decodable { let problem: Problem?; struct Problem: Decodable {} }
+        }
+        guard let decoded = try? JSONDecoder().decode(Releases.self, from: data) else { return [] }
+        return decoded.releases
+            .filter { $0.value.problem == nil }
+            .keys
+            // The tolerant parser normalizes two-component and "v"-prefixed versions, as for tags.
+            .compactMap { Version(tolerant: $0) }
+            .sorted()
+    }
+
     public static func currentPackagePins(in folder: Folder, forkUpstreams: [String: String] = [:]) throws -> [Self] {
         let file: File = try {
             let possibleRootResolvedPaths = [
@@ -158,14 +199,19 @@ extension SwiftPackage {
                 )
             }
         } else if let resolvedV2 = try? JSONDecoder().decode(ResolvedV2.self, from: data) {
-            return resolvedV2.pins.map {
-                SwiftPackage(
-                    package: $0.identity,
-                    repositoryURL: $0.location,
-                    revision: $0.state.revision,
-                    branch: $0.state.branch,
-                    version: Version($0.state.version ?? ""),
-                    upstreamURL: forkUpstreams[normalizeRepositoryURL($0.location)]
+            let registryProvider = HTTPRegistryProvider(projectPath: folder.path)
+            return resolvedV2.pins.map { pin in
+                let isRegistry = pin.kind == "registry" || pin.location == nil
+                let location = pin.location ?? ""
+                return SwiftPackage(
+                    package: pin.identity,
+                    repositoryURL: location,
+                    revision: pin.state.revision,
+                    branch: pin.state.branch,
+                    version: Version(pin.state.version ?? ""),
+                    upstreamURL: isRegistry ? nil : forkUpstreams[normalizeRepositoryURL(location)],
+                    registryIdentity: isRegistry ? pin.identity : nil,
+                    registryProvider: registryProvider
                 )
             }
         } else {
@@ -221,7 +267,8 @@ extension SwiftPackage {
                         package: package.package,
                         currentVersion: current,
                         latestVersion: latest,
-                        url: package.repositoryURL
+                        url: package.repositoryURL,
+                        registryIdentity: package.registryIdentity
                     )
                 )
             } else {
@@ -232,7 +279,8 @@ extension SwiftPackage {
                         repositoryURL: package.repositoryURL,
                         revision: package.revision,
                         branch: package.branch,
-                        version: package.version
+                        version: package.version,
+                        registryIdentity: package.registryIdentity
                     )
                 )
             }
@@ -270,9 +318,17 @@ extension SwiftPackage {
     /// the pins also reports everything: that signals our determination missed (e.g. a Tuist or
     /// local-package layout whose pins aren't expressed in the inspected manifest), and hiding
     /// every package would look like the tool is broken.
+    /// The `directDependencyURLs` set also holds lowercased registry identities (see
+    /// `DirectDependencyResolver.parseDumpPackageURLs`), so registry packages match by identity while
+    /// source-control packages match by normalized URL.
     static func filterToDirectDependencies(_ packages: [SwiftPackage], directDependencyURLs: Set<String>?) -> [SwiftPackage] {
         guard let directURLs = directDependencyURLs else { return packages }
-        let filtered = packages.filter { directURLs.contains(normalizeRepositoryURL($0.repositoryURL)) }
+        let filtered = packages.filter { package in
+            if let identity = package.registryIdentity {
+                return directURLs.contains(identity.lowercased())
+            }
+            return directURLs.contains(normalizeRepositoryURL(package.repositoryURL))
+        }
         guard !filtered.isEmpty || packages.isEmpty else {
             log.info("Direct dependencies matched no resolved packages; reporting all.")
             return packages
@@ -409,7 +465,7 @@ extension SwiftPackage: TextTableRepresentable {
         return [
             self.package,
             self.version ?? self.revision ?? "N/A",
-            self.repositoryURL.blue
+            self.displayURL.blue
         ]
     }
 }
