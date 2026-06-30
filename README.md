@@ -71,9 +71,9 @@ forks:
     upstream: https://github.com/original/SomeLib.git
 ```
 
-`fork` is matched against the URL in your `Package.resolved` (SSH/HTTPS and a `.git` suffix are treated the same); `upstream` is the repository whose tags then determine the latest version. The dependency is still listed under its own (fork) URL — only the version comparison, including the base/latest tags for branch and revision pins, uses the upstream.
+`fork` is matched against the URL in your `Package.resolved` (SSH/HTTPS and a `.git` suffix are treated the same); `upstream` is the repository whose tags then determine the latest version. The dependency is still listed under its own fork URL, only the version comparison, including the base/latest tags for branch and revision pins, uses the upstream.
 
-Use `--config` / `-c` to point at a config file elsewhere. A malformed config is reported and otherwise ignored.
+Use `--config` / `-c` to point at a config file elsewhere.
 
 ### Branch and revision pins
 
