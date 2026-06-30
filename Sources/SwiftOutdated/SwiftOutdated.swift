@@ -42,7 +42,7 @@ public struct SwiftOutdated: AsyncParsableCommand, Sendable {
     @Flag(name: .long, help: "Show what would be updated without making changes.")
     var dryRun: Bool = false
 
-    @Flag(name: .long, help: "Check packages against OSV and OpenSSF Scorecard for known vulnerabilities.")
+    @Flag(name: [.customShort("s"), .long], help: "Check packages against OSV and OpenSSF Scorecard for known vulnerabilities.")
     var checkSecurity: Bool = false
 
     @Option(name: .long, help: "Path to a package checkouts directory (overrides auto-detection of .build/checkouts and SourcePackages/checkouts).")
@@ -52,7 +52,7 @@ public struct SwiftOutdated: AsyncParsableCommand, Sendable {
         commandName: "swift-outdated",
         abstract: "Check for outdated dependencies.",
         discussion: """
-        swift-outdated will output an overview of your outdated dependencies found in your Package.resolved file.
+        swift-outdated will output an overview of your outdated dependencies.
 
         By default only your project's direct dependencies are reported. Transitive dependencies (the
         dependencies of your dependencies) are determined from the manifest (via swift package dump-package
