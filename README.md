@@ -40,6 +40,12 @@ $ swift outdated
 
 This lists all your outdated dependencies, the currently resolved version and the latest version available in their upstream repository.
 
+### Direct vs. transitive dependencies
+
+By default `swift-outdated` only reports your project's **direct** dependencies, the ones you declared yourself, via `swift package dump-package` for SwiftPM and Tuist projects, and from the `XCRemoteSwiftPackageReference` entries in `project.pbxproj` for Xcode projects.
+
+Pass `-t` / `--include-transitive` to report transitive dependencies as well. If the direct dependencies can't be determined (for example a project layout without a recognizable manifest), every package is reported.
+
 ### Listing all dependencies
 
 `swift-outdated` also allows listing all your dependencies alongside the ones that are not up to date.
