@@ -4,7 +4,7 @@ A swift subcommand for checking if your dependencies have an update available. T
 
 Calling `swift package update` will only update to the latest available requirements inside your specified version requirements, which totally makes sense, but you might miss that there's a new major version available if you don't check the dependency's repository regularly.
 
-This tool aims to help with that by allowing you to quickly check the remote git tags of your dependencies to see if something outside of your version requirements is available. It also aims to be smart regarding dependencies that are pinned to a branch or a specific revision, not checking transitive dependencies, checking for known security vulnerabilities, and supporting SwiftPM, Tuist and plain Xcode projects.
+This tool aims to help with that by allowing you to quickly check the remote git tags of your dependencies to see if something outside of your version requirements is available. It also aims to be smart regarding dependencies that are pinned to a branch or a specific revision, not checking transitive dependencies, following forks to their upstream, checking for known security vulnerabilities, and supporting SwiftPM, Tuist and plain Xcode projects.
 
 This project is very much inspired by [cargo-outdated](https://github.com/kbknapp/cargo-outdated).
 
@@ -60,6 +60,20 @@ $ swift outdated -u
 | swift-log | 1.14.0  | ✓      | https://github.com/apple/swift-log.git |
 | somepin   | abc1234 | ?      | https://github.com/example/somepin.git |
 ```
+
+### Following a fork's upstream
+
+If a dependency is a fork of another project, the fork's own repository often carries no new tags, so it looks up to date even when the original (upstream) project has shipped newer releases. You can tell `swift-outdated` to measure outdatedness against the upstream instead, via a `.swift-outdated.yml` file in your project directory:
+
+```yaml
+forks:
+  - fork: https://github.com/mycompany/SomeLib.git
+    upstream: https://github.com/original/SomeLib.git
+```
+
+`fork` is matched against the URL in your `Package.resolved` (SSH/HTTPS and a `.git` suffix are treated the same); `upstream` is the repository whose tags then determine the latest version. The dependency is still listed under its own (fork) URL — only the version comparison, including the base/latest tags for branch and revision pins, uses the upstream.
+
+Use `--config` / `-c` to point at a config file elsewhere. A malformed config is reported and otherwise ignored.
 
 ### Branch and revision pins
 
