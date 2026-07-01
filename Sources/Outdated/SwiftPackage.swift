@@ -118,7 +118,12 @@ extension SwiftPackage {
                 .compactMap { Version(tolerant: $0) }
                 .sorted()
         } catch {
-            log.error("Error on git ls-remote for \(package): \(error)")
+            let stderr = (error as? ShellOutError)?.message ?? "\(error)"
+            if let hint = gitAuthHint(stderr: stderr) {
+                log.warning("Skipping \(package): \(hint)")
+            } else {
+                log.error("Error on git ls-remote for \(package): \(error)")
+            }
             return []
         }
     }
@@ -260,6 +265,7 @@ extension SwiftPackage {
         let versions = await fetchAvailableVersions(for: packages)
 
         var upToDatePackages: [SwiftPackage] = []
+        var unknownPackages: [SwiftPackage] = []
         var outdatedPackages: [OutdatedPackage] = []
 
         for (package, allVersions) in versions {
@@ -267,7 +273,22 @@ extension SwiftPackage {
                 continue
             }
 
-            if let latest = getLatestVersion(from: allVersions, currentVersion: current, ignoringPrerelease: ignoringPrerelease, onlyMajorUpdates: onlyMajorUpdates),
+            if allVersions.isEmpty {
+                // No versions came back at all — typically a private repo we couldn't authenticate
+                // against (#17, #30). We haven't confirmed anything, so report the latest as unknown
+                // rather than falsely showing it up to date.
+                log.info("Package \(package.package) has no available versions; latest is unknown.")
+                unknownPackages.append(
+                    SwiftPackage(
+                        package: package.package,
+                        repositoryURL: package.repositoryURL,
+                        revision: package.revision,
+                        branch: package.branch,
+                        version: package.version,
+                        registryIdentity: package.registryIdentity
+                    )
+                )
+            } else if let latest = getLatestVersion(from: allVersions, currentVersion: current, ignoringPrerelease: ignoringPrerelease, onlyMajorUpdates: onlyMajorUpdates),
                current != latest {
                 log.info("Package \(package.package) is outdated.")
                 outdatedPackages.append(
@@ -316,6 +337,7 @@ extension SwiftPackage {
             outdatedPackages: outdatedPackages.sorted(),
             ignoredPackages: ignoredPackages.sorted(),
             upToDatePackages: upToDatePackages.sorted(),
+            unknownPackages: unknownPackages.sorted(),
             securityResults: securityResults,
             refPinnedPackages: refPinnedPackages.sorted()
         )

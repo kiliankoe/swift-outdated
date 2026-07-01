@@ -340,4 +340,27 @@ struct VersionCollectionTests {
         #expect(collection.outdatedPackages.isEmpty)
         #expect(collection.upToDatePackages.isEmpty)
     }
+
+    @Test("A version pin whose remote can't be reached is reported as unknown, not up to date")
+    func unreachableVersionPinIsUnknown() async {
+        // An unconfigured mock throws, mirroring a private repo whose fetch fails (issues #17, #30):
+        // availableVersions() then yields no versions.
+        let package = SwiftPackage(
+            package: "Private",
+            repositoryURL: "https://github.com/example/private.git",
+            revision: nil,
+            version: Version(1, 0, 0),
+            gitProvider: MockGitRemoteProvider()
+        )
+
+        let collection = await SwiftPackage.collectVersions(
+            for: [package],
+            ignoringPrerelease: false,
+            onlyMajorUpdates: false
+        )
+
+        #expect(collection.unknownPackages.map(\.package) == ["Private"])
+        #expect(collection.upToDatePackages.isEmpty)
+        #expect(collection.outdatedPackages.isEmpty)
+    }
 }

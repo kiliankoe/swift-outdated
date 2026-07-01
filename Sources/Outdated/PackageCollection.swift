@@ -6,11 +6,14 @@ public struct PackageCollection: Encodable {
     public var outdatedPackages: [OutdatedPackage]
     public var ignoredPackages: [SwiftPackage]
     public var upToDatePackages: [SwiftPackage]
+    /// Version-pinned packages whose remote couldn't be reached (typically a private repo needing
+    /// credentials); their latest version is unknown, not confirmed up to date.
+    public var unknownPackages: [SwiftPackage] = []
     public var securityResults: [String: SecurityPair]?
     public var refPinnedPackages: [RefPinAnalysis] = []
 
     enum CodingKeys: String, CodingKey {
-        case outdatedPackages, ignoredPackages, upToDatePackages, securityResults, refPinnedPackages
+        case outdatedPackages, ignoredPackages, upToDatePackages, unknownPackages, securityResults, refPinnedPackages
     }
 }
 
@@ -23,6 +26,7 @@ extension PackageCollection {
 
     public func output(format: OutputFormat, includeUpToDatePackages: Bool = false) {
         guard !self.outdatedPackages.isEmpty || !self.ignoredPackages.isEmpty || !self.refPinnedPackages.isEmpty
+            || !self.unknownPackages.isEmpty
             || (includeUpToDatePackages && !self.upToDatePackages.isEmpty) else { return }
 
         switch format {
@@ -40,6 +44,9 @@ extension PackageCollection {
                 let latest = $0.latestTag.map { "v\($0)" } ?? "a newer tag"
                 print("warning: Dependency \"\($0.package)\" is pinned to \(pin) at \($0.shortRevision)\(base) but \(latest) is available → \($0.url)")
             }
+            self.unknownPackages.forEach {
+                print("warning: Could not check \"\($0.package)\" for updates, is it a private repository needing credentials? → \($0.displayURL)")
+            }
         case .json:
             let encoder = JSONEncoder()
             encoder.outputFormatting = .prettyPrinted
@@ -54,6 +61,7 @@ extension PackageCollection {
             if let securityResults = securityResults {
                 var rows = outdatedPackages.map { OutdatedPackageWithSecurity(base: $0, security: securityResults[$0.package]).tableValues }
                 rows += refPins.map { refPinSecurityRow($0) }
+                rows += unknownPackages.map { unknownSecurityRow($0) }
                 if includeUpToDatePackages {
                     rows += upToDatePackages.map { upToDateSecurityRow($0) }
                     rows += ignoredPackages.map { ignoredSecurityRow($0) }
@@ -62,6 +70,7 @@ extension PackageCollection {
             } else {
                 var rows = outdatedPackages.map { $0.tableValues }
                 rows += refPins.map { $0.tableValues }
+                rows += unknownPackages.map { unknownRow($0) }
                 if includeUpToDatePackages {
                     rows += upToDatePackages.map { upToDateRow($0) }
                     rows += ignoredPackages.map { ignoredRow($0) }
@@ -126,6 +135,11 @@ extension PackageCollection {
         [pkg.package, pkg.version?.description ?? pkg.revision ?? "N/A", "?".dim, pkg.displayURL.blue]
     }
 
+    /// A version-pinned package whose remote couldn't be reached: current version is known, latest isn't.
+    private func unknownRow(_ pkg: SwiftPackage) -> [CustomStringConvertible] {
+        [pkg.package, pkg.version?.description ?? pkg.revision ?? "N/A", "?".dim, pkg.displayURL.blue]
+    }
+
     /// Up-to-date packages aren't security-scanned, so the CVE/score cells are unknown.
     private func upToDateSecurityRow(_ pkg: SwiftPackage) -> [CustomStringConvertible] {
         [pkg.package, pkg.version?.description ?? pkg.revision ?? "N/A", "?".dim, "✓".green, "?".dim, "?".dim, pkg.displayURL.blue]
@@ -133,6 +147,12 @@ extension PackageCollection {
 
     /// Ignored pins are neither analyzed nor security-scanned, so every derived cell is unknown.
     private func ignoredSecurityRow(_ pkg: SwiftPackage) -> [CustomStringConvertible] {
+        [pkg.package, pkg.version?.description ?? pkg.revision ?? "N/A", "?".dim, "?".dim, "?".dim, "?".dim, pkg.displayURL.blue]
+    }
+
+    /// An unreachable version-pinned package can't be security-scanned either, so latest and every
+    /// security cell is unknown; only its current version is known.
+    private func unknownSecurityRow(_ pkg: SwiftPackage) -> [CustomStringConvertible] {
         [pkg.package, pkg.version?.description ?? pkg.revision ?? "N/A", "?".dim, "?".dim, "?".dim, "?".dim, pkg.displayURL.blue]
     }
 
