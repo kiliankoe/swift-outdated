@@ -140,7 +140,7 @@ extension SwiftPackage {
             .sorted()
     }
 
-    public static func currentPackagePins(in folder: Folder, forkUpstreams: [String: String] = [:]) throws -> [Self] {
+    public static func currentPackagePins(in folder: Folder, forkUpstreams: [String: String] = [:], cache: TagCache? = nil) throws -> [Self] {
         let file: File = try {
             let possibleRootResolvedPaths = [
                 "Package.resolved",
@@ -186,7 +186,13 @@ extension SwiftPackage {
         guard let data = try? file.read() else {
             throw Error.notReadable
         }
-        
+
+        // A cache (Xcode Run Script Phase) decorates the live providers; otherwise they're used directly.
+        let baseGit: GitRemoteProvider = ShellGitRemoteProvider()
+        let baseRegistry: RegistryProvider = HTTPRegistryProvider(projectPath: folder.path)
+        let gitProvider: GitRemoteProvider = cache.map { CachingGitRemoteProvider(wrapped: baseGit, cache: $0) } ?? baseGit
+        let registryProvider: RegistryProvider = cache.map { CachingRegistryProvider(wrapped: baseRegistry, cache: $0) } ?? baseRegistry
+
         if let resolvedV1 = try? JSONDecoder().decode(ResolvedV1.self, from: data) {
             return resolvedV1.object.pins.map {
                 SwiftPackage(
@@ -195,11 +201,12 @@ extension SwiftPackage {
                     revision: $0.state.revision,
                     branch: $0.state.branch,
                     version: Version($0.state.version ?? ""),
-                    upstreamURL: forkUpstreams[normalizeRepositoryURL($0.repositoryURL)]
+                    upstreamURL: forkUpstreams[normalizeRepositoryURL($0.repositoryURL)],
+                    gitProvider: gitProvider,
+                    registryProvider: registryProvider
                 )
             }
         } else if let resolvedV2 = try? JSONDecoder().decode(ResolvedV2.self, from: data) {
-            let registryProvider = HTTPRegistryProvider(projectPath: folder.path)
             return resolvedV2.pins.map { pin in
                 let isRegistry = pin.kind == "registry" || pin.location == nil
                 let location = pin.location ?? ""
@@ -211,6 +218,7 @@ extension SwiftPackage {
                     version: Version(pin.state.version ?? ""),
                     upstreamURL: isRegistry ? nil : forkUpstreams[normalizeRepositoryURL(location)],
                     registryIdentity: isRegistry ? pin.identity : nil,
+                    gitProvider: gitProvider,
                     registryProvider: registryProvider
                 )
             }
