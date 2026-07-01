@@ -151,3 +151,14 @@ or set up a Run Script Phase. In the latter case `swift-outdated` emits warnings
 When run inside Xcode, `swift-outdated` caches the fetched versions for an hour (under `~/Library/Caches/swift-outdated/`) so repeated
 builds don't refetch every dependency each time. Pass `--no-cache` to force a fresh fetch. Outside of Xcode the cache is never used, so
 manual runs always report the latest available versions.
+
+### Private dependencies
+
+Checking a dependency's versions runs `git ls-remote` against its repository. A private repository that requires authentication will not allow
+`swift-outdated` to fetch its tags, so the dependency is listed with `?` as its latest version.
+
+To have private dependencies resolved as well, make sure git can authenticate without prompting:
+
+- For password-protected SSH keys, load the key into `ssh-agent` first (`eval "$(ssh-agent)"; ssh-add ~/.ssh/your_key`).
+- For private HTTPS repositories, configure a git credential helper that can answer without a prompt, for example
+  `git config --global credential.helper osxkeychain`.
