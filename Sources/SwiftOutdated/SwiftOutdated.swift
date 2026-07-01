@@ -51,6 +51,9 @@ public struct SwiftOutdated: AsyncParsableCommand, Sendable {
     @Option(name: [.customShort("c"), .long], help: "Path to a config file (overrides auto-detection of .swift-outdated.yml in the project directory).")
     var config: String?
 
+    @Flag(name: .long, help: "Bypass the tag cache used during Xcode builds and always fetch fresh.")
+    var noCache: Bool = false
+
     public static let configuration = CommandConfiguration(
         commandName: "swift-outdated",
         abstract: "Check for outdated dependencies.",
@@ -71,7 +74,8 @@ public struct SwiftOutdated: AsyncParsableCommand, Sendable {
         and red for anything above that.
 
         swift-outdated automatically detects if it is run via an Xcode run script phase and will emit warnings for
-        Xcode's issue navigator.
+        Xcode's issue navigator. In that case fetched versions are cached for an hour so repeated builds don't
+        refetch every dependency; pass --no-cache to bypass it.
 
         Use --update to automatically update outdated packages:
           swift-outdated --update patch    Update to latest patch versions
@@ -85,7 +89,9 @@ public struct SwiftOutdated: AsyncParsableCommand, Sendable {
         setupLogging()
         let folder = try Folder(path: path)
         let forkUpstreams = OutdatedConfig.load(in: folder, explicitPath: config).forkUpstreamMap()
-        let pins = try SwiftPackage.currentPackagePins(in: folder, forkUpstreams: forkUpstreams)
+        // Cache fetched versions across the frequent rebuilds of an Xcode Run Script Phase (issue #4).
+        let cache = (isRunningInXcode && !noCache) ? TagCache(ttl: TagCache.defaultTTL) : nil
+        let pins = try SwiftPackage.currentPackagePins(in: folder, forkUpstreams: forkUpstreams, cache: cache)
         for pin in pins where pin.upstreamURL != nil {
             log.info("Following upstream \(pin.upstreamURL!) for \(pin.package).")
         }

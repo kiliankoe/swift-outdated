@@ -148,5 +148,6 @@ or set up a Run Script Phase. In the latter case `swift-outdated` emits warnings
 
 <img width="247" alt="Xcode warnings screenshot" src="https://user-images.githubusercontent.com/2625584/104966116-6cedc400-59e0-11eb-9dc0-942f860e9e33.png">
 
-Be aware however that using a Run Script Phase in this way will fetch available versions for all of your dependencies on every build, which will
-increase your build time by a second or two. You're probably better off running this manually every now and then.
+When run inside Xcode, `swift-outdated` caches the fetched versions for an hour (under `~/Library/Caches/swift-outdated/`) so repeated
+builds don't refetch every dependency each time. Pass `--no-cache` to force a fresh fetch. Outside of Xcode the cache is never used, so
+manual runs always report the latest available versions.
