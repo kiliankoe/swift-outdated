@@ -118,7 +118,12 @@ extension SwiftPackage {
                 .compactMap { Version(tolerant: $0) }
                 .sorted()
         } catch {
-            log.error("Error on git ls-remote for \(package): \(error)")
+            let stderr = (error as? ShellOutError)?.message ?? "\(error)"
+            if let hint = gitAuthHint(stderr: stderr) {
+                log.warning("Skipping \(package): \(hint)")
+            } else {
+                log.error("Error on git ls-remote for \(package): \(error)")
+            }
             return []
         }
     }
